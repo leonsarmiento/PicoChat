@@ -1,8 +1,12 @@
 """
-FlyGPT - A 0.8B parameter vision-language chatbot.
-Inspired by the Drosophila melanogaster: ~0.8B brain connections, no memory, single-turn.
+LobsterGPT - A 4B parameter vision-language chatbot.
 
-Model: unsloth/Qwen3.5-0.8B-GGUF (Q4_K_M) + mmproj-BF16 vision encoder
+A rough but fun parallel: model parameters ~ brain synapses.
+A fruit fly has ~0.8B synapses. A lobster has ~1M neurons but billions of synapses.
+4B parameters puts us firmly in complex arthropod territory -- the lobster,
+an ancient, hardy creature with excellent vision and no need for small talk.
+
+Model: Huihui-Qwen3.5-4B-abliterated-GGUF (Q4_K_M) + mmproj vision encoder
 Engine: llama-cpp-python
 """
 
@@ -137,19 +141,25 @@ def run_inference(llm, text: str, image_b64: str | None = None) -> str:
 # ---------------------------------------------------------------------------
 def main():
     st.set_page_config(
-        page_title="FlyGPT",
-        page_icon="🪰",
+        page_title="LobsterGPT",
+        page_icon="🦞",
         layout="centered",
     )
 
     # Header
     st.markdown("""
-    # 🪰 FlyGPT
-    *A 4B vision-language model running on free infrastructure. No memory, no multiturn — just prompt and respond.*
+    # 🦞 LobsterGPT
+    *4B parameters. Roughly lobster-brain complexity (if you squint). No memory, no multiturn.*
     """)
 
     st.caption(
-        "Huihui-Qwen3.5-4B (abliterated) · Text limited to 500 chars · Images downsampled to 1072px"
+        "Model parameters are a loose proxy for brain synapses. "
+        "~0.8B = fruit fly. ~4B = lobster territory. ~20B = human. "
+        "Not biologically accurate, but you get the point."
+    )
+
+    st.caption(
+        "Huihui-Qwen3.5-4B (abliterated) · Text limit: 500 chars · Images: 1072px max"
     )
 
     st.divider()
@@ -169,14 +179,14 @@ def main():
         "Your prompt",
         max_chars=MAX_TEXT_CHARS,
         height=120,
-        placeholder="Ask the fly anything...",
+        placeholder="Ask the lobster anything...",
     )
 
-    submit = st.button("Ask the fly", type="primary", use_container_width=True)
+    submit = st.button("Ask the lobster", type="primary", use_container_width=True)
 
     if submit:
         if not user_text.strip() and not uploaded_image:
-            st.warning("Give the fly something to work with — enter text or attach an image.")
+            st.warning("Give the lobster something to work with — enter text or attach an image.")
             return
 
         image_b64 = None
@@ -184,7 +194,7 @@ def main():
             with st.spinner("Processing image..."):
                 image_b64 = preprocess_image(uploaded_image)
 
-        with st.spinner("The fly is thinking..."):
+        with st.spinner("The lobster is thinking..."):
             try:
                 result = run_inference(llm, user_text.strip(), image_b64)
                 st.markdown("### Response")
@@ -210,7 +220,7 @@ def main():
         """)
 
     st.caption(
-        "FlyGPT · Huihui-Qwen3.5-4B-abliterated (Q4_K_M) · llama-cpp-python · "
+        "LobsterGPT · Huihui-Qwen3.5-4B-abliterated (Q4_K_M) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
