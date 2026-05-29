@@ -22,9 +22,9 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "unsloth/Qwen3.5-0.8B-GGUF"
-MODEL_FILE = "Qwen3.5-0.8B-Q4_K_M.gguf"
-MMPROJ_FILE = "mmproj-BF16.gguf"
+MODEL_REPO = "mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF"
+MODEL_FILE = "Huihui-Qwen3.5-4B-abliterated.Q4_K_M.gguf"
+MMPROJ_FILE = "Huihui-Qwen3.5-4B-abliterated.mmproj-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 MAX_IMAGE_PX = 1072
@@ -145,12 +145,11 @@ def main():
     # Header
     st.markdown("""
     # 🪰 FlyGPT
-    *A tiny vision-language model with ~0.8B parameters — about as many as a fruit fly's brain connections.*
+    *A 4B vision-language model running on free infrastructure. No memory, no multiturn — just prompt and respond.*
     """)
 
     st.caption(
-        "No memory. No multiturn. Just a fly looking at your prompt and responding. "
-        "Text limited to 500 chars. Images downsampled to 1072px."
+        "Huihui-Qwen3.5-4B (abliterated) · Text limited to 500 chars · Images downsampled to 1072px"
     )
 
     st.divider()
@@ -211,7 +210,7 @@ def main():
         """)
 
     st.caption(
-        "FlyGPT · Qwen3.5-0.8B (Q4_K_M) · llama-cpp-python · "
+        "FlyGPT · Huihui-Qwen3.5-4B-abliterated (Q4_K_M) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
