@@ -26,9 +26,9 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF"
-MODEL_FILE = "Huihui-Qwen3.5-4B-abliterated.Q4_K_M.gguf"
-MMPROJ_FILE = "Huihui-Qwen3.5-4B-abliterated.mmproj-Q8_0.gguf"
+MODEL_REPO = "mradermacher/Huihui-Qwen3.5-2B-abliterated-GGUF"
+MODEL_FILE = "Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf"
+MMPROJ_FILE = "Huihui-Qwen3.5-2B-abliterated.mmproj-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 MAX_IMAGE_PX = 1072
@@ -149,17 +149,17 @@ def main():
     # Header
     st.markdown("""
     # 🦞 LobsterGPT
-    *4B parameters. Roughly lobster-brain complexity (if you squint). No memory, no multiturn.*
+    *2B parameters. Somewhere between fruit fly and lobster territory. No memory, no multiturn.*
     """)
 
     st.caption(
         "Model parameters are a loose proxy for brain synapses. "
-        "~0.8B = fruit fly. ~4B = lobster territory. ~20B = human. "
+        "~0.8B = fruit fly. ~2B = jumping spider? ~4B = lobster. ~20B = human. "
         "Not biologically accurate, but you get the point."
     )
 
     st.caption(
-        "Huihui-Qwen3.5-4B (abliterated) · Text limit: 500 chars · Images: 1072px max"
+        "Huihui-Qwen3.5-2B (abliterated) · Text limit: 500 chars · Images: 1072px max"
     )
 
     st.divider()
@@ -220,7 +220,7 @@ def main():
         """)
 
     st.caption(
-        "LobsterGPT · Huihui-Qwen3.5-4B-abliterated (Q4_K_M) · llama-cpp-python · "
+        "LobsterGPT · Huihui-Qwen3.5-2B-abliterated (Q4_K_M) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
