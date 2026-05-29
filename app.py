@@ -32,10 +32,10 @@ MMPROJ_FILE = "mmproj-BF16.gguf"
 
 MAX_TEXT_CHARS = 500
 MAX_IMAGE_PX = 1072
-N_CTX = 2048
-N_BATCH = 256
+N_CTX = 4096
+N_BATCH = 512
 MAX_TOKENS = 512
-N_THREADS = max(1, min(2, (os.cpu_count() or 2) // 2))
+N_THREADS = max(2, min(12, (os.cpu_count() or 4)))
 
 
 # ---------------------------------------------------------------------------
