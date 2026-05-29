@@ -40,20 +40,15 @@ N_THREADS = max(1, min(2, (os.cpu_count() or 2) // 2))
 @st.cache_resource
 def download_model_files():
     """Download main GGUF model + vision projection from HuggingFace."""
-    with st.status("Downloading model files from HuggingFace...", expanded=True) as status:
-        status.update(label="Downloading main model (533 MB)...")
-        model_path = hf_hub_download(
-            repo_id=MODEL_REPO,
-            filename=MODEL_FILE,
-        )
-
-        status.update(label="Downloading vision encoder (207 MB)...")
-        mmproj_path = hf_hub_download(
-            repo_id=MODEL_REPO,
-            filename=MMPROJ_FILE,
-        )
-
-        status.update(label="Download complete!", state="complete")
+    st.info("Downloading model files from HuggingFace (first run only)...")
+    model_path = hf_hub_download(
+        repo_id=MODEL_REPO,
+        filename=MODEL_FILE,
+    )
+    mmproj_path = hf_hub_download(
+        repo_id=MODEL_REPO,
+        filename=MMPROJ_FILE,
+    )
     return model_path, mmproj_path
 
 
@@ -65,17 +60,16 @@ def load_model(_model_path, _mmproj_path):
     """Load the model with vision support."""
     from llama_cpp import Llama
 
-    with st.status("Loading model into memory...", expanded=True) as status:
-        llm = Llama(
-            model_path=_model_path,
-            mmproj=_mmproj_path,
-            n_ctx=N_CTX,
-            n_batch=N_BATCH,
-            n_gpu_layers=0,  # CPU only
-            n_threads=N_THREADS,
-            verbose=False,
-        )
-        status.update(label="Model ready!", state="complete")
+    st.info("Loading model into memory...")
+    llm = Llama(
+        model_path=_model_path,
+        mmproj=_mmproj_path,
+        n_ctx=N_CTX,
+        n_batch=N_BATCH,
+        n_gpu_layers=0,  # CPU only
+        n_threads=N_THREADS,
+        verbose=False,
+    )
     return llm
 
 
