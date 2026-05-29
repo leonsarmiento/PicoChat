@@ -12,6 +12,9 @@ import os
 import sys
 import traceback
 
+import platform
+
+import psutil
 import streamlit as st
 from huggingface_hub import hf_hub_download
 from PIL import Image
@@ -199,8 +202,20 @@ def main():
                     traceback.print_exc(file=sys.stdout)
                     st.code(traceback.format_exc())
 
-    # Footer
+    # System info
     st.divider()
+    with st.expander("System info"):
+        mem = psutil.virtual_memory()
+        st.markdown(f"""
+        - **Python**: {platform.python_version()}
+        - **Platform**: {platform.platform()}
+        - **CPU cores**: {psutil.cpu_count()}
+        - **RAM total**: {mem.total / (1024**3):.2f} GB
+        - **RAM available**: {mem.available / (1024**3):.2f} GB
+        - **RAM used**: {mem.used / (1024**3):.2f} GB ({mem.percent}%)
+        - **Disk free**: {psutil.disk_usage('/').free / (1024**3):.2f} GB
+        """)
+
     st.caption(
         "FlyGPT · Qwen3.5-0.8B (Q4_K_M) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."

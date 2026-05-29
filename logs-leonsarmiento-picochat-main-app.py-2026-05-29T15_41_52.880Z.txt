@@ -1,0 +1,363 @@
+
+[     UTC     ] Logs for pico-chat.streamlit.app/
+────────────────────────────────────────────────────────────────────────────────────────
+[15:39:26] 🖥 Provisioning machine...
+[15:39:26] 🎛 Preparing system...
+[15:39:26] ⛓ Spinning up manager process...
+[15:39:17] 🚀 Starting up repository: 'picochat', branch: 'main', main module: 'app.py'
+[15:39:17] 🐙 Cloning repository...
+[15:39:18] 🐙 Cloning into '/mount/src/picochat'...
+
+[15:39:18] 🐙 Cloned repository!
+[15:39:18] 🐙 Pulling code changes from Github...
+[15:39:18] 📦 Processing dependencies...
+[15:39:18] 📦 Apt dependencies were installed from /mount/src/picochat/packages.txt using apt-get.
+Get:1 http://deb.debian.org/debian-security bullseye-security InRelease [27.2 kB]
+Hit:2 http://deb.debian.org/debian trixie InRelease
+Get:3 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:4 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:5 http://deb.debian.org/debian-security bullseye-security/main amd64 Packages [453 kB]
+Get:6 https://packages.microsoft.com/debian/11/prod bullseye InRelease [3650 B]
+Get:7 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [174 kB]
+Get:8 https://packages.microsoft.com/debian/11/prod bullseye/main arm64 Packages [80.3 kB]
+Get:9 https://packages.microsoft.com/debian/11/prod bullseye/main amd64 Packages [225 kB]
+Fetched 1054 kB in 0s (4414 kB/s)
+Reading package lists...[2026-05-29 15:39:19.961564] 
+Reading package lists...[2026-05-29 15:39:20.770747] 
+Building dependency tree...[2026-05-29 15:39:21.024994] 
+Reading state information...[2026-05-29 15:39:21.025219] 
+build-essential is already the newest version (12.12).
+The following additional packages will be installed:
+  cmake-data libarchive13t64 libjsoncpp26 libproc2-0 librhash1 libuv1t64
+  libxml2 linux-sysctl-defaults procps psmisc
+Suggested packages:
+  cmake-doc cmake-format elpa-cmake-mode ninja-build lrzip
+The following NEW packages will be installed:
+  cmake cmake-data libarchive13t64 libjsoncpp26 libproc2-0 librhash1 libuv1t64
+  libxml2 linux-sysctl-defaults procps psmisc
+0 upgraded, 11 newly installed, 0 to remove and 1 not upgraded.
+Need to get 16.9 MB of archives.
+After this operation, 61.6 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main amd64 linux-sysctl-defaults all 4.12.1 [5724 B]
+Get:2 http://deb.debian.org/debian trixie/main amd64 libproc2-0 amd64 2:4.0.4-9 [65.6 kB]
+Get:3 http://deb.debian.org/debian trixie/main amd64 procps amd64 2:4.0.4-9 [882 kB]
+Get:4 http://deb.debian.org/debian trixie/main amd64 cmake-data all 3.31.6-2 [2268 kB]
+Get:5 http://deb.debian.org/debian trixie/main amd64 libxml2 amd64 2.12.7+dfsg+really2.9.14-2.1+deb13u2 [698 kB]
+Get:6 http://deb.debian.org/debian trixie/main amd64 libarchive13t64 amd64 3.7.4-4+deb13u1 [350 kB]
+Get:7 http://deb.debian.org/debian trixie/main amd64 libjsoncpp26 amd64 1.9.6-3 [81.7 kB]
+Get:8 http://deb.debian.org/debian trixie/main amd64 librhash1 amd64 1.4.5-1 [132 kB]
+Get:9 http://deb.debian.org/debian trixie/main amd64 libuv1t64 amd64 1.50.0-2 [154 kB]
+Get:10 http://deb.debian.org/debian trixie/main amd64 cmake amd64 3.31.6-2 [12.0 MB]
+Get:11 http://deb.debian.org/debian trixie/main amd64 psmisc amd64 23.7-2 [267 kB]
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+debconf: unable to initialize frontend: Teletype
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Noninteractive
+Fetched 16.9 MB in 0s (89.1 MB/s)
+Selecting previously unselected package linux-sysctl-defaults.
+(Reading database ... [2026-05-29 15:39:22.720883] (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%[2026-05-29 15:39:22.723628] (Reading database ... 75%[2026-05-29 15:39:22.724580] (Reading database ... 80%[2026-05-29 15:39:22.725723] (Reading database ... 85%[2026-05-29 15:39:22.727097] (Reading database ... 90%[2026-05-29 15:39:22.729146] (Reading database ... 95%[2026-05-29 15:39:22.731373] (Reading database ... 100%(Reading database ... 19815 files and directories currently installed.)
+Preparing to unpack .../00-linux-sysctl-defaults_4.12.1_all.deb ...
+Unpacking linux-sysctl-defaults (4.12.1) ...
+Selecting previously unselected package libproc2-0:amd64.
+Preparing to unpack .../01-libproc2-0_2%3a4.0.4-9_amd64.deb ...
+Unpacking libproc2-0:amd64 (2:4.0.4-9) ...
+Selecting previously unselected package procps.
+Preparing to unpack .../02-procps_2%3a4.0.4-9_amd64.deb ...
+Unpacking procps (2:4.0.4-9) ...
+Selecting previously unselected package cmake-data.
+Preparing to unpack .../03-cmake-data_3.31.6-2_all.deb ...
+Unpacking cmake-data (3.31.6-2) ...
+Selecting previously unselected package libxml2:amd64.
+Preparing to unpack .../04-libxml2_2.12.7+dfsg+really2.9.14-2.1+deb13u2_amd64.deb ...
+Unpacking libxml2:amd64 (2.12.7+dfsg+really2.9.14-2.1+deb13u2) ...
+Selecting previously unselected package libarchive13t64:amd64.
+Preparing to unpack .../05-libarchive13t64_3.7.4-4+deb13u1_amd64.deb ...
+Unpacking libarchive13t64:amd64 (3.7.4-4+deb13u1) ...
+Selecting previously unselected package libjsoncpp26:amd64.
+Preparing to unpack .../06-libjsoncpp26_1.9.6-3_amd64.deb ...
+Unpacking libjsoncpp26:amd64 (1.9.6-3) ...
+Selecting previously unselected package librhash1:amd64.
+Preparing to unpack .../07-librhash1_1.4.5-1_amd64.deb ...
+Unpacking librhash1:amd64 (1.4.5-1) ...
+Selecting previously unselected package libuv1t64:amd64.
+Preparing to unpack .../08-libuv1t64_1.50.0-2_amd64.deb ...
+Unpacking libuv1t64:amd64 (1.50.0-2) ...
+Selecting previously unselected package cmake.
+Preparing to unpack .../09-cmake_3.31.6-2_amd64.deb ...
+Unpacking cmake (3.31.6-2) ...
+Selecting previously unselected package psmisc.
+Preparing to unpack .../10-psmisc_23.7-2_amd64.deb ...
+Unpacking psmisc (23.7-2) ...
+Setting up psmisc (23.7-2) ...
+Setting up libuv1t64:amd64 (1.50.0-2) ...
+Setting up linux-sysctl-defaults (4.12.1) ...
+Setting up libjsoncpp26:amd64 (1.9.6-3) ...
+Setting up libproc2-0:amd64 (2:4.0.4-9) ...
+Setting up procps (2:4.0.4-9) ...
+Setting up cmake-data (3.31.6-2) ...
+Setting up librhash1:amd64 (1.4.5-1) ...
+Setting up libxml2:amd64 (2.12.7+dfsg+really2.9.14-2.1+deb13u2) ...
+Setting up libarchive13t64:amd64 (3.7.4-4+deb13u1) ...
+Setting up cmake (3.31.6-2) ...
+Processing triggers for libc-bin (2.41-12+deb13u3) ...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+error: Expected `--hash`, found `"--extra-index-url"` at requirements.txt:2:25
+Checking if Streamlit is installed
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.12.13 environment at /home/adminuser/venv
+Resolved 4 packages in 127ms
+Prepared 4 packages in 104ms
+Installed 4 packages in 20ms
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ [2026-05-29 15:39:26.170758] + pygments==2.20.0
+ + rich==15.0.0
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+
+──────────────────────────────────────── pip ───────────────────────────────────────────
+
+Using standard pip install.
+Collecting streamlit>=1.28.0 (from -r /mount/src/picochat/requirements.txt (line 1))
+  Downloading streamlit-1.58.0-py3-none-any.whl.metadata (9.6 kB)
+Collecting llama-cpp-python>=0.3.0 (from -r /mount/src/picochat/requirements.txt (line 2))
+  Downloading llama_cpp_python-0.3.23.tar.gz (68.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.3/68.3 MB 169.0 MB/s eta 0:00:00[2026-05-29 15:39:28.448183] 
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Installing backend dependencies: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting huggingface_hub>=0.20.0 (from -r /mount/src/picochat/requirements.txt (line 3))
+  Downloading huggingface_hub-1.17.0-py3-none-any.whl.metadata (14 kB)
+Collecting Pillow>=10.0.0 (from -r /mount/src/picochat/requirements.txt (line 4))
+  Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+Collecting altair!=5.4.0,!=5.4.1,<7,>=4.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading altair-6.1.0-py3-none-any.whl.metadata (11 kB)
+Collecting blinker<2,>=1.5.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
+Collecting cachetools<8,>=5.5 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading cachetools-7.1.4-py3-none-any.whl.metadata (5.5 kB)
+Collecting click<9,>=7.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading click-8.4.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting gitpython!=3.1.19,<4,>=3.0.7 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading gitpython-3.1.50-py3-none-any.whl.metadata (14 kB)
+Collecting numpy<3,>=1.23 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading numpy-2.4.6-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting packaging>=20 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+Collecting pandas<4,>=1.4.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading pandas-3.0.3-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (79 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.5/79.5 kB 217.6 MB/s eta 0:00:00[2026-05-29 15:39:35.273779] 
+Collecting pydeck<1,>=0.8.0b4 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading pydeck-0.9.2-py2.py3-none-any.whl.metadata (4.2 kB)
+Collecting protobuf<8,>=3.20 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading protobuf-7.35.0-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+Collecting pyarrow>=7.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading pyarrow-24.0.0-cp312-cp312-manylinux_2_28_x86_64.whl.metadata (3.0 kB)
+Collecting requests<3,>=2.27 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting tenacity<10,>=8.1.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading tenacity-9.1.4-py3-none-any.whl.metadata (1.2 kB)
+Collecting toml<2,>=0.10.1 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading toml-0.10.2-py2.py3-none-any.whl.metadata (7.1 kB)
+Collecting typing-extensions<5,>=4.10.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting starlette>=0.40.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading starlette-1.2.0-py3-none-any.whl.metadata (6.3 kB)
+Collecting uvicorn>=0.30.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading uvicorn-0.48.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting httptools>=0.6.3 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+Collecting anyio>=4.0.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+Collecting python-multipart>=0.0.10 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading python_multipart-0.0.29-py3-none-any.whl.metadata (2.1 kB)
+Collecting websockets>=12.0.0 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading websockets-16.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.8 kB)
+Collecting itsdangerous>=2.1.2 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
+Collecting watchdog<7,>=2.1.5 (from streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl.metadata (44 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.3/44.3 kB 189.6 MB/s eta 0:00:00[2026-05-29 15:39:36.545179] 
+Collecting diskcache>=5.6.1 (from llama-cpp-python>=0.3.0->-r /mount/src/picochat/requirements.txt (line 2))
+  Downloading diskcache-5.6.3-py3-none-any.whl.metadata (20 kB)
+Collecting jinja2>=2.11.3 (from llama-cpp-python>=0.3.0->-r /mount/src/picochat/requirements.txt (line 2))
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting filelock>=3.10.0 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)
+Collecting fsspec>=2023.5.0 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading fsspec-2026.4.0-py3-none-any.whl.metadata (10 kB)
+Collecting hf-xet<2.0.0,>=1.4.3 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+Collecting httpx<1,>=0.23.0 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting pyyaml>=5.1 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting tqdm>=4.42.1 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.7/57.7 kB 110.1 MB/s eta 0:00:00[2026-05-29 15:39:37.228595] 
+Collecting typer<0.26.0,>=0.20.0 (from huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading typer-0.25.1-py3-none-any.whl.metadata (15 kB)
+Collecting jsonschema>=3.0 (from altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting narwhals>=2.4.0 (from altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading narwhals-2.21.2-py3-none-any.whl.metadata (16 kB)
+Collecting idna>=2.8 (from anyio>=4.0.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading idna-3.17-py3-none-any.whl.metadata (6.4 kB)
+Collecting gitdb<5,>=4.0.1 (from gitpython!=3.1.19,<4,>=3.0.7->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading gitdb-4.0.12-py3-none-any.whl.metadata (1.2 kB)
+Collecting certifi (from httpx<1,>=0.23.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading certifi-2026.5.20-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting MarkupSafe>=2.0 (from jinja2>=2.11.3->llama-cpp-python>=0.3.0->-r /mount/src/picochat/requirements.txt (line 2))
+  Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Collecting python-dateutil>=2.8.2 (from pandas<4,>=1.4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting charset_normalizer<4,>=2 (from requests<3,>=2.27->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.9/40.9 kB 100.0 MB/s eta 0:00:00[2026-05-29 15:39:38.430908] 
+Collecting urllib3<3,>=1.26 (from requests<3,>=2.27->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting shellingham>=1.3.0 (from typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+Collecting rich>=13.8.0 (from typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting annotated-doc>=0.0.2 (from typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+Collecting smmap<6,>=3.0.1 (from gitdb<5,>=4.0.1->gitpython!=3.1.19,<4,>=3.0.7->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading smmap-5.0.3-py3-none-any.whl.metadata (4.6 kB)
+Collecting attrs>=22.2.0 (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.25.0 (from jsonschema>=3.0->altair!=5.4.0,!=5.4.1,<7,>=4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading rpds_py-2026.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)
+Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas<4,>=1.4.0->streamlit>=1.28.0->-r /mount/src/picochat/requirements.txt (line 1))
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich>=13.8.0->typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer<0.26.0,>=0.20.0->huggingface_hub>=0.20.0->-r /mount/src/picochat/requirements.txt (line 3))
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Downloading streamlit-1.58.0-py3-none-any.whl (9.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.2/9.2 MB 217.7 MB/s eta 0:00:00[2026-05-29 15:39:40.036543] 
+Downloading huggingface_hub-1.17.0-py3-none-any.whl (671 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 671.5/671.5 kB 45.9 MB/s eta 0:00:00[2026-05-29 15:39:40.062284] 
+Downloading pillow-12.2.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 144.4 MB/s eta 0:00:00[2026-05-29 15:39:40.123288] 
+Downloading altair-6.1.0-py3-none-any.whl (796 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 797.0/797.0 kB 110.3 MB/s eta 0:00:00[2026-05-29 15:39:40.141665] 
+Downloading anyio-4.13.0-py3-none-any.whl (114 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 203.9 MB/s eta 0:00:00[2026-05-29 15:39:40.153226] 
+Downloading blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Downloading cachetools-7.1.4-py3-none-any.whl (16 kB)
+Downloading click-8.4.1-py3-none-any.whl (116 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 116.6/116.6 kB 288.6 MB/s eta 0:00:00[2026-05-29 15:39:40.184081] 
+Downloading diskcache-5.6.3-py3-none-any.whl (45 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45.5/45.5 kB 138.0 MB/s eta 0:00:00[2026-05-29 15:39:40.197021] 
+Downloading filelock-3.29.0-py3-none-any.whl (39 kB)
+Downloading fsspec-2026.4.0-py3-none-any.whl (203 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 203.4/203.4 kB 165.1 MB/s eta 0:00:00[2026-05-29 15:39:40.219957] 
+Downloading gitpython-3.1.50-py3-none-any.whl (212 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 212.5/212.5 kB 168.9 MB/s eta 0:00:00[2026-05-29 15:39:40.234498] 
+Downloading hf_xet-1.5.0-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 110.3 MB/s eta 0:00:00[2026-05-29 15:39:40.287933] 
+Downloading httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (523 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 523.9/523.9 kB 231.5 MB/s eta 0:00:00[2026-05-29 15:39:40.301530] 
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 159.5 MB/s eta 0:00:00[2026-05-29 15:39:40.313674] 
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 178.7 MB/s eta 0:00:00[2026-05-29 15:39:40.325397] 
+Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 230.3 MB/s eta 0:00:00[2026-05-29 15:39:40.346827] 
+Downloading numpy-2.4.6-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.6/16.6 MB 110.5 MB/s eta 0:00:00[2026-05-29 15:39:40.510402] 
+Downloading packaging-26.2-py3-none-any.whl (100 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.2/100.2 kB 171.2 MB/s eta 0:00:00[2026-05-29 15:39:40.522717] 
+Downloading pandas-3.0.3-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (10.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.9/10.9 MB 106.9 MB/s eta 0:00:00[2026-05-29 15:39:40.634713] 
+Downloading protobuf-7.35.0-cp310-abi3-manylinux2014_x86_64.whl (327 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 327.1/327.1 kB 208.9 MB/s eta 0:00:00[2026-05-29 15:39:40.649779] 
+Downloading pyarrow-24.0.0-cp312-cp312-manylinux_2_28_x86_64.whl (48.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.9/48.9 MB 118.3 MB/s eta 0:00:00[2026-05-29 15:39:41.080618] 
+Downloading pydeck-0.9.2-py2.py3-none-any.whl (11.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 122.7 MB/s eta 0:00:00[2026-05-29 15:39:41.184201] 
+Downloading python_multipart-0.0.29-py3-none-any.whl (29 kB)
+Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 123.7 MB/s eta 0:00:00[2026-05-29 15:39:41.210670] 
+Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.1/73.1 kB 227.0 MB/s eta 0:00:00[2026-05-29 15:39:41.221611] 
+Downloading starlette-1.2.0-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.2/73.2 kB 250.1 MB/s eta 0:00:00[2026-05-29 15:39:41.233208] 
+Downloading tenacity-9.1.4-py3-none-any.whl (28 kB)
+Downloading toml-0.10.2-py2.py3-none-any.whl (16 kB)
+Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 167.4 MB/s eta 0:00:00[2026-05-29 15:39:41.264042] 
+Downloading typer-0.25.1-py3-none-any.whl (58 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.4/58.4 kB 226.6 MB/s eta 0:00:00[2026-05-29 15:39:41.275384] 
+Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 205.5 MB/s eta 0:00:00[2026-05-29 15:39:41.286755] 
+Downloading uvicorn-0.48.0-py3-none-any.whl (71 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.4/71.4 kB 252.7 MB/s eta 0:00:00[2026-05-29 15:39:41.298323] 
+Downloading watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl (79 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 79.1/79.1 kB 282.4 MB/s eta 0:00:00[2026-05-29 15:39:41.309529] 
+Downloading websockets-16.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 184.9/184.9 kB 260.7 MB/s eta 0:00:00[2026-05-29 15:39:41.321073] 
+Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 208.0 MB/s eta 0:00:00[2026-05-29 15:39:41.340928] 
+Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.6/216.6 kB 289.7 MB/s eta 0:00:00[2026-05-29 15:39:41.352592] 
+Downloading gitdb-4.0.12-py3-none-any.whl (62 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.8/62.8 kB 253.5 MB/s eta 0:00:00[2026-05-29 15:39:41.362935] 
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading idna-3.17-py3-none-any.whl (65 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 65.3/65.3 kB 240.3 MB/s eta 0:00:00[2026-05-29 15:39:41.382901] 
+Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 228.0 MB/s eta 0:00:00[2026-05-29 15:39:41.396628] 
+Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Downloading narwhals-2.21.2-py3-none-any.whl (451 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 451.2/451.2 kB 246.5 MB/s eta 0:00:00[2026-05-29 15:39:41.419174] 
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 214.4 MB/s eta 0:00:00[2026-05-29 15:39:41.431314] 
+Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 310.7/310.7 kB 204.5 MB/s eta 0:00:00[2026-05-29 15:39:41.444070] 
+Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.1/131.1 kB 274.4 MB/s eta 0:00:00[2026-05-29 15:39:41.463667] 
+Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.5/67.5 kB 155.4 MB/s eta 0:00:00[2026-05-29 15:39:41.476241] 
+Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 91.7/91.7 kB 190.0 MB/s eta 0:00:00[2026-05-29 15:39:41.498235] 
+Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 122.7 MB/s eta 0:00:00[2026-05-29 15:39:41.520948] 
+Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+Downloading rpds_py-2026.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (376 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 376.3/376.3 kB 158.9 MB/s eta 0:00:00[2026-05-29 15:39:41.545827] 
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading smmap-5.0.3-py3-none-any.whl (24 kB)
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Building wheels for collected packages: llama-cpp-python
+  Building wheel for llama-cpp-python (pyproject.toml): started
