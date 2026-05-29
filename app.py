@@ -26,9 +26,9 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "mradermacher/Huihui-Qwen3.5-2B-abliterated-GGUF"
-MODEL_FILE = "Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf"
-MMPROJ_FILE = "Huihui-Qwen3.5-2B-abliterated.mmproj-Q8_0.gguf"
+MODEL_REPO = "mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF"
+MODEL_FILE = "Huihui-Qwen3.5-4B-abliterated.Q6_K.gguf"
+MMPROJ_FILE = "Huihui-Qwen3.5-4B-abliterated.mmproj-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 MAX_IMAGE_PX = 1072
@@ -149,7 +149,7 @@ def main():
     # Header
     st.markdown("""
     # 🦞 LobsterGPT
-    *2B parameters. Somewhere between fruit fly and lobster territory. No memory, no multiturn.*
+    *4B parameters. Roughly lobster-brain complexity (if you squint). No memory, no multiturn.*
     """)
 
     st.caption(
@@ -159,7 +159,7 @@ def main():
     )
 
     st.caption(
-        "Huihui-Qwen3.5-2B (abliterated) · Text limit: 500 chars · Images: 1072px max"
+        "Huihui-Qwen3.5-4B (abliterated, Q6_K) · Text limit: 500 chars · Images: 1072px max"
     )
 
     st.divider()
@@ -220,7 +220,7 @@ def main():
         """)
 
     st.caption(
-        "LobsterGPT · Huihui-Qwen3.5-2B-abliterated (Q4_K_M) · llama-cpp-python · "
+        "LobsterGPT · Huihui-Qwen3.5-4B-abliterated (Q6_K) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
