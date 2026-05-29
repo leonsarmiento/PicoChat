@@ -1,12 +1,12 @@
 """
-LobsterGPT - A 4B parameter vision-language chatbot.
+LobsterGPT - A 2B parameter vision-language chatbot.
 
 A rough but fun parallel: model parameters ~ brain synapses.
-A fruit fly has ~0.8B synapses. A lobster has ~1M neurons but billions of synapses.
-4B parameters puts us firmly in complex arthropod territory -- the lobster,
-an ancient, hardy creature with excellent vision and no need for small talk.
+A fruit fly has ~0.8B synapses. A jumping spider has ~2B.
+2B parameters puts us in jumping spider territory — tiny, fast,
+with excellent vision and no need for small talk.
 
-Model: Huihui-Qwen3.5-4B-abliterated-GGUF (Q4_K_M) + mmproj vision encoder
+Model: Qwen3.5-2B-GGUF (Q8_0) + mmproj vision encoder
 Engine: llama-cpp-python
 """
 
@@ -26,9 +26,9 @@ from PIL import Image
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF"
-MODEL_FILE = "Huihui-Qwen3.5-4B-abliterated.Q6_K.gguf"
-MMPROJ_FILE = "Huihui-Qwen3.5-4B-abliterated.mmproj-Q8_0.gguf"
+MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
+MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
+MMPROJ_FILE = "mmproj-BF16.gguf"
 
 MAX_TEXT_CHARS = 500
 MAX_IMAGE_PX = 1072
@@ -149,17 +149,17 @@ def main():
     # Header
     st.markdown("""
     # 🦞 LobsterGPT
-    *4B parameters. Roughly lobster-brain complexity (if you squint). No memory, no multiturn.*
+    *2B parameters. Jumping spider territory (if you squint). No memory, no multiturn.*
     """)
 
     st.caption(
         "Model parameters are a loose proxy for brain synapses. "
-        "~0.8B = fruit fly. ~2B = jumping spider? ~4B = lobster. ~20B = human. "
+        "~0.8B = fruit fly. ~2B = jumping spider. ~4B = lobster. ~20B = human. "
         "Not biologically accurate, but you get the point."
     )
 
     st.caption(
-        "Huihui-Qwen3.5-4B (abliterated, Q6_K) · Text limit: 500 chars · Images: 1072px max"
+        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Images: 1072px max"
     )
 
     st.divider()
@@ -220,7 +220,7 @@ def main():
         """)
 
     st.caption(
-        "LobsterGPT · Huihui-Qwen3.5-4B-abliterated (Q6_K) · llama-cpp-python · "
+        "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 

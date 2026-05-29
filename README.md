@@ -6,7 +6,7 @@ A vision-language chatbot running **entirely inside Streamlit Community Cloud** 
 
 ## What it does
 
-- Downloads a 4B parameter GGUF model + vision encoder from HuggingFace on cold start
+- Downloads a 2B parameter GGUF model + vision encoder from HuggingFace on cold start (~2.7 GB total)
 - Runs inference locally using `llama-cpp-python` (CPU-only)
 - Accepts text (500 char limit) and image inputs (downsampled to 1072px)
 - Single-turn only — no memory, no conversation history
@@ -18,11 +18,11 @@ Streamlit Cloud (free tier)
 ├── app.py                  ← Streamlit UI + inference logic
 ├── requirements.txt        ← llama-cpp-python (pre-built CPU wheel)
 ├── packages.txt            ← build-essential, cmake (fallback)
-└── .streamlit/config.toml  ← dark theme
+└── .streamlit/config.toml  ← dark theme, 5MB upload limit
 
 Cold start:
   1. pip install from requirements.txt
-  2. Download ~3.8 GB from HuggingFace (model + vision encoder)
+  2. Download ~2.7 GB from HuggingFace (model + vision encoder)
   3. Load into memory with llama-cpp-python
   4. Ready to serve
 
@@ -31,9 +31,9 @@ Subsequent requests: cached in memory until the container recycles.
 
 ## Model
 
-**[Huihui-Qwen3.5-4B-abliterated](https://huggingface.co/mradermacher/Huihui-Qwen3.5-4B-abliterated-GGUF)** (Q6_K, 3.46 GB)
+**[Qwen3.5-2B-GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF)** (Q8_0, ~2.0 GB) + **mmproj-BF16** (~671 MB)
 
-A 4B parameter vision-language model based on Qwen3.5 architecture. Supports text and image inputs natively through the `mmproj` vision encoder.
+A 2B parameter vision-language model based on the Qwen3.5 architecture. Supports text and image inputs natively through the `mmproj` vision encoder. Q8_0 quantization for good quality at manageable size.
 
 ## The brain size analogy
 
@@ -57,11 +57,11 @@ Model parameters are a loose proxy for brain synapses. Not biologically accurate
 
 1. **llama-cpp-python has pre-built CPU wheels** at `https://abetlen.github.io/llama-cpp-python/whl/cpu` — put `--extra-index-url` on its own line in `requirements.txt` to avoid a 5+ minute cmake build on deploy
 2. **Python 3.12** is the sweet spot — pre-built wheels exist for 3.10/3.11/3.12 only
-3. **Streamlit Cloud has more RAM than advertised** — a 4B Q6_K model + vision encoder (~3.8 GB) runs comfortably
+3. **Streamlit Cloud has more RAM than advertised** — a 2B Q8_0 model + vision encoder (~2.7 GB) runs comfortably
 4. **`@st.cache_resource`** keeps the model in memory across reruns within a session — no reloading
 5. **No persistent storage** — model is re-downloaded on every cold start, but HF Hub caching helps if the container stays warm
 6. **`st.status` inside `@st.cache_resource` creates orphaned spinners** — use `st.info` instead
-7. **Q4_K_M crashes with `GGML_ASSERT` on Qwen3.5 4B** — the `block_q4_K` repack path in llama-cpp-python hits an assertion failure. Q6_K works fine and has better quality anyway. Q4_0 is another alternative.
+7. **Qwen3.5 4B GGUF crashes with `GGML_ASSERT`** — both Q4_K_M and Q6_K quantizations hit assertion failures in llama-cpp-python's `block_q4_K`/`block_q6_K` repack code. The 4B architecture is broken with current llama-cpp-python (v0.3.23). The 2B model at Q8_0 works perfectly.
 
 ## Local development
 
@@ -70,7 +70,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The first run will download ~3.8 GB of model files from HuggingFace.
+The first run will download ~2.7 GB of model files from HuggingFace.
 
 ## Deploy your own
 
