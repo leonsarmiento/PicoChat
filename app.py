@@ -159,7 +159,7 @@ def main():
     )
 
     st.caption(
-        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Images: 1072px max"
+        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only"
     )
 
     st.divider()
@@ -169,12 +169,6 @@ def main():
     llm = load_model(model_path, mmproj_path)
 
     # --- Input area ---
-    uploaded_image = st.file_uploader(
-        "Attach an image (optional)",
-        type=["jpg", "jpeg", "png", "webp"],
-        help="Image will be resized to max 1072px on the longest side.",
-    )
-
     user_text = st.text_area(
         "Your prompt",
         max_chars=MAX_TEXT_CHARS,
@@ -185,18 +179,13 @@ def main():
     submit = st.button("Ask the lobster", type="primary", use_container_width=True)
 
     if submit:
-        if not user_text.strip() and not uploaded_image:
-            st.warning("Give the lobster something to work with — enter text or attach an image.")
+        if not user_text.strip():
+            st.warning("Give the lobster something to work with — enter some text.")
             return
-
-        image_b64 = None
-        if uploaded_image:
-            with st.spinner("Processing image..."):
-                image_b64 = preprocess_image(uploaded_image)
 
         with st.spinner("The lobster is thinking..."):
             try:
-                result = run_inference(llm, user_text.strip(), image_b64)
+                result = run_inference(llm, user_text.strip())
                 st.markdown("### Response")
                 st.markdown(result)
             except Exception as e:
