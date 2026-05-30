@@ -1,28 +1,27 @@
 # LobsterGPT
 
-A vision-language chatbot running **entirely inside Streamlit Community Cloud** — model download, inference, and UI all in one free-hosted app.
+A text chatbot running **entirely inside Streamlit Community Cloud** — model download, inference, and UI all in one free-hosted app.
 
 > The real proof of concept here is not the chatbot. It is that **you can deploy a small LLM and run inference from within Streamlit itself**, on free infrastructure, with no external API calls, no GPU, and no server-side dependencies beyond what Streamlit provides out of the box.
 
 ## What it does
 
-- Downloads a 2B parameter GGUF model + vision encoder from HuggingFace on cold start (~2.7 GB total)
+- Downloads a 2B parameter GGUF model from HuggingFace on cold start (~2.0 GB)
 - Runs inference locally using `llama-cpp-python` (CPU-only)
-- Accepts text (500 char limit) and image inputs (downsampled to 1072px)
-- Single-turn only — no memory, no conversation history
+- Accepts text prompts (500 char limit) in single-turn Instruct mode
+- No memory, no conversation history, no thinking — fast and simple
 
 ## How it works
 
 ```
 Streamlit Cloud (free tier)
-├── app.py                  ← Streamlit UI + inference logic
-├── requirements.txt        ← llama-cpp-python (pre-built CPU wheel)
-├── packages.txt            ← build-essential, cmake (fallback)
-└── .streamlit/config.toml  ← dark theme, 5MB upload limit
+├── app.py                  <- Streamlit UI + inference logic
+├── requirements.txt        <- llama-cpp-python, huggingface_hub, psutil
+└── .streamlit/config.toml  <- dark theme
 
 Cold start:
   1. pip install from requirements.txt
-  2. Download ~2.7 GB from HuggingFace (model + vision encoder)
+  2. Download ~2.0 GB from HuggingFace (Qwen3.5-2B Q8_0)
   3. Load into memory with llama-cpp-python
   4. Ready to serve
 
@@ -31,9 +30,9 @@ Subsequent requests: cached in memory until the container recycles.
 
 ## Model
 
-**[Qwen3.5-2B-GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF)** (Q8_0, ~2.0 GB) + **mmproj-BF16** (~671 MB)
+**[Qwen3.5-2B-GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF)** (Q8_0, ~2.0 GB)
 
-A 2B parameter vision-language model based on the Qwen3.5 architecture. Supports text and image inputs natively through the `mmproj` vision encoder. Q8_0 quantization for good quality at manageable size.
+A 2B parameter model based on the Qwen3.5 architecture. Runs in Instruct mode (thinking disabled by default for the Small series). Q8_0 quantization for good quality at manageable size.
 
 ## The brain size analogy
 
@@ -55,22 +54,25 @@ Model parameters are a loose proxy for brain synapses. Not biologically accurate
 
 ## Key lessons
 
-1. **llama-cpp-python has pre-built CPU wheels** at `https://abetlen.github.io/llama-cpp-python/whl/cpu` — put `--extra-index-url` on its own line in `requirements.txt` to avoid a 5+ minute cmake build on deploy
-2. **Python 3.12** is the sweet spot — pre-built wheels exist for 3.10/3.11/3.12 only
-3. **Streamlit Cloud has more RAM than advertised** — a 2B Q8_0 model + vision encoder (~2.7 GB) runs comfortably
-4. **`@st.cache_resource`** keeps the model in memory across reruns within a session — no reloading
+1. **llama-cpp-python installs from PyPI** — no cmake, no binary downloads, just `pip install llama-cpp-python`
+2. **Python 3.12** is the sweet spot for Streamlit Cloud
+3. **Streamlit Cloud has ~125 GB RAM and 16 CPU cores** — far more than advertised, a 2B model runs comfortably
+4. **`@st.cache_resource`** keeps the model in memory across reruns within a session
 5. **No persistent storage** — model is re-downloaded on every cold start, but HF Hub caching helps if the container stays warm
-6. **`st.status` inside `@st.cache_resource` creates orphaned spinners** — use `st.info` instead
-7. **Qwen3.5 4B GGUF crashes with `GGML_ASSERT`** — both Q4_K_M and Q6_K quantizations hit assertion failures in llama-cpp-python's `block_q4_K`/`block_q6_K` repack code. The 4B architecture is broken with current llama-cpp-python (v0.3.23). The 2B model at Q8_0 works perfectly.
+6. **Qwen3.5 4B GGUF crashes with `GGML_ASSERT`** — both Q4_K_M and Q6_K quantizations. The 2B model at Q8_0 works perfectly
+7. **Vision via llama-cpp-python is broken for Qwen3.5** — the `Qwen25VLChatHandler` produces garbled output. Only the native `llama-server` binary handles vision correctly, but it is unreliable on Streamlit Cloud. Image support was removed
+8. **Thinking mode requires `--chat-template-kwargs`** — this is a llama-server CLI flag, not available through llama-cpp-python's Python API. Instruct mode (thinking off) works natively since Qwen3.5 Small disables thinking by default
 
 ## Local development
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The first run will download ~2.7 GB of model files from HuggingFace.
+The first run will download ~2.0 GB of model files from HuggingFace.
 
 ## Deploy your own
 
@@ -81,3 +83,7 @@ The first run will download ~2.7 GB of model files from HuggingFace.
 5. Deploy
 
 That's it. No API keys, no GPU, no external services.
+
+## Status
+
+**Working.** Text-only, single-turn, Instruct mode. Image and thinking support are blocked by llama-cpp-python limitations (see lessons 7-8).
