@@ -116,7 +116,7 @@ MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
 MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
-N_CTX = 4096
+N_CTX = 20000
 N_BATCH = 512
 MAX_TOKENS = 512
 N_THREADS = max(2, min(12, (os.cpu_count() or 4)))
@@ -137,10 +137,11 @@ MEMORY_TURNS = 4
 # --- Wikipedia mode ---
 # When wiki mode is ON (default), cooking is disabled and the model runs at
 # a fixed WIKI_TEMP. The model may emit "SEARCH: <query>" to look something
-# up; we fetch a short Wikipedia summary and re-run with that context.
+# up; we fetch a Wikipedia article and re-run with that context.
 WIKI_TEMP = 0.6
 WIKI_MODE_DEFAULT = True
 WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+WIKI_MAX_CHARS = 8000  # cap wiki extract; ~2000 tokens, plenty of room in 20k context
 
 DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
 
@@ -265,16 +266,22 @@ def doneness_label(temp: float) -> tuple[str, str]:
 # Wikipedia
 # ---------------------------------------------------------------------------
 def search_wikipedia(query: str) -> dict | None:
-    """Fetch a short Wikipedia summary for a query. Returns None on failure.
+    """Fetch a Wikipedia article for a query. Returns None on failure.
 
-    Uses the REST summary endpoint, which auto-resolves the best-matching
-    article title and returns 1-2 clean paragraphs (~500-800 chars).
+    Two steps:
+    1. Search API resolves the query to the best-matching article title.
+    2. TextExtracts API (prop=extracts, explaintext=true) fetches the full
+       article body as plain text — NOT the REST summary endpoint, which
+       returns only the first sentence (~74 chars for obscure articles).
+
+    The extract is capped at WIKI_MAX_CHARS to fit the context window
+    alongside the system prompt and history.
 
     Returns {"title": ..., "extract": ..., "context": ...} on success.
     """
     headers = {"User-Agent": "LobsterGPT/1.0 (educational project)"}
 
-    # First resolve the query to a canonical page title via the search API.
+    # Step 1: resolve the query to a canonical page title via the search API.
     search_url = "https://en.wikipedia.org/w/api.php"
     search_params = {
         "action": "query",
@@ -295,22 +302,34 @@ def search_wikipedia(query: str) -> dict | None:
         log.warning(f"Wiki search failed for '{query}': {e}")
         return None
 
-    # Fetch the summary for that title.
-    title_slug = requests.utils.quote(title.replace(" ", "_"))
-    summary_url = WIKI_API_BASE + title_slug
+    # Step 2: fetch the full article extract via the TextExtracts API.
+    extract_params = {
+        "action": "query",
+        "titles": title,
+        "prop": "extracts",
+        "explaintext": "true",
+        "format": "json",
+    }
     try:
-        resp = requests.get(summary_url, timeout=10, headers={**headers, "Accept": "application/json"})
+        resp = requests.get(search_url, params=extract_params, timeout=10, headers=headers)
         resp.raise_for_status()
-        data = resp.json()
-        extract = data.get("extract", "").strip()
+        pages = resp.json().get("query", {}).get("pages", {})
+        # TextExtracts returns a dict keyed by page ID.
+        page = next(iter(pages.values()))
+        extract = page.get("extract", "").strip()
         if not extract:
             log.info(f"Wiki: empty extract for '{title}'")
             return None
+        # Cap to fit the context budget. Truncate at the nearest paragraph
+        # break to avoid cutting mid-sentence when possible.
+        if len(extract) > WIKI_MAX_CHARS:
+            cut = extract[:WIKI_MAX_CHARS].rfind("\n\n")
+            extract = extract[:cut] if cut > WIKI_MAX_CHARS // 2 else extract[:WIKI_MAX_CHARS].rsplit(". ", 1)[0] + "."
         log.info(f"Wiki: fetched '{title}' ({len(extract)} chars)")
         context = f"[Wikipedia: {title}]\n{extract}"
         return {"title": title, "extract": extract, "context": context}
     except Exception as e:
-        log.warning(f"Wiki summary fetch failed for '{title}': {e}")
+        log.warning(f"Wiki extract fetch failed for '{title}': {e}")
         return None
 
 
@@ -533,13 +552,23 @@ def main():
 
         try:
             if wiki_mode:
-                # --- Wiki two-pass: first pass lets the model decide to search ---
+                # --- Wiki two-pass ---
+                # Clean history: strip any assistant messages that contain
+                # "SEARCH:" so the model never sees prior SEARCH outputs as
+                # in-context examples to copy (the main cause of search loops).
+                clean_hist = [
+                    m for m in st.session_state.history
+                    if not (m["role"] == "assistant" and parse_search_command(m["content"]))
+                ]
+
+                # Pass 1: decide whether to search. Low max_tokens forces a
+                # terse SEARCH: line instead of a rambling non-answer.
                 with st.spinner("The lobster is thinking..."):
                     first_pass, _ = run_inference(
                         llm, send_text,
                         st.session_state.system_prompt, WIKI_TEMP,
-                        st.session_state.history,
-                        max_tokens=MAX_TOKENS,
+                        clean_hist,
+                        max_tokens=64,
                     )
 
                     search_query = parse_search_command(first_pass)
@@ -553,18 +582,19 @@ def main():
 
                         if wiki_result:
                             st.session_state.last_wiki_result = wiki_result
+                            # Pass 2: answer using wiki context. NO history —
+                            # the answer pass gets a clean slate so nothing
+                            # in context can teach it to emit SEARCH again.
                             with st.spinner("The lobster is reading Wikipedia..."):
                                 result, _ = run_inference(
                                     llm, send_text,
                                     WIKI_ANSWER_PROMPT, WIKI_TEMP,
-                                    st.session_state.history,
+                                    [],  # no history on answer pass
                                     wiki_context=wiki_result["context"],
                                     max_tokens=MAX_TOKENS,
                                 )
-                            # Safety net: if the model STILL emits SEARCH on the
-                            # answer pass (it shouldn't, but 2B models echo
-                            # patterns), show the Wikipedia extract verbatim so
-                            # the user gets the information instead of a loop.
+                            # Safety net: if the model STILL emits SEARCH,
+                            # show the extract verbatim.
                             if parse_search_command(result):
                                 log.warning(f"Wiki answer-pass emitted SEARCH despite WIKI_ANSWER_PROMPT; falling back to extract. raw={result[:120]!r}")
                                 result = wiki_result["extract"]
