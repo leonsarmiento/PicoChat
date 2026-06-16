@@ -378,8 +378,6 @@ def main():
     # --- Session state: cooking timer + system prompt + memory + wiki ---
     if "heat_seconds" not in st.session_state:
         st.session_state.heat_seconds = 0.0
-    if "system_prompt" not in st.session_state:
-        st.session_state.system_prompt = DEFAULT_SYSTEM_PROMPT
     if "last_response" not in st.session_state:
         st.session_state.last_response = None
     if "last_temp" not in st.session_state:
@@ -390,6 +388,11 @@ def main():
         st.session_state.wiki_mode = WIKI_MODE_DEFAULT
     if "last_wiki_result" not in st.session_state:
         st.session_state.last_wiki_result = None
+    # Initialize system prompt to match the default mode.
+    if "system_prompt" not in st.session_state:
+        st.session_state.system_prompt = WIKI_SYSTEM_PROMPT if WIKI_MODE_DEFAULT else DEFAULT_SYSTEM_PROMPT
+    if "last_wiki_mode" not in st.session_state:
+        st.session_state.last_wiki_mode = WIKI_MODE_DEFAULT
 
     # --- Sidebar: mode toggle + status + system prompt editor ---
     with st.sidebar:
@@ -401,6 +404,16 @@ def main():
             help="ON: Wikipedia access, fixed temp (0.6), no cooking. OFF: the cooking game — temperature climbs with each answer.",
         )
         st.session_state.wiki_mode = wiki_mode
+
+        # Auto-swap system prompt on mode change, but only if the current
+        # prompt is a known default (don't clobber user edits).
+        if wiki_mode != st.session_state.last_wiki_mode:
+            new_default = WIKI_SYSTEM_PROMPT if wiki_mode else DEFAULT_SYSTEM_PROMPT
+            old_default = DEFAULT_SYSTEM_PROMPT if wiki_mode else WIKI_SYSTEM_PROMPT
+            if st.session_state.system_prompt == old_default:
+                st.session_state.system_prompt = new_default
+                log.info(f"Mode changed -> swapped system prompt to {'wiki' if wiki_mode else 'cooking'} default")
+            st.session_state.last_wiki_mode = wiki_mode
 
         st.divider()
 
@@ -481,12 +494,20 @@ def main():
     model_path = download_model_files()
     llm = load_model(model_path)
 
-    # --- Input (chat_input: pinned to bottom) ---
-    # Desktop: cmd+enter (Mac) / ctrl+enter (Win/Linux) to send, Enter = newline.
-    st.caption("Press **⌘/Ctrl + Enter** to send · paste is supported")
-    prompt = st.chat_input("Ask the lobster anything...")
+    # --- Input (inline form, right under the model load message) ---
+    # st.chat_input always pins to the bottom of the viewport, which is why
+    # the box appeared at the foot of the page. A form with text_input renders
+    # inline AND gives us plain Enter-to-send (chat_input needed cmd/ctrl+enter).
+    with st.form("chat_form", clear_on_submit=True):
+        prompt = st.text_input(
+            "Ask the lobster...",
+            placeholder="Ask the lobster anything...",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("🦞 Ask the lobster", use_container_width=True)
+        st.caption("Press **Enter** to send · paste is supported")
 
-    if prompt:
+    if submitted and prompt:
         send_text = prompt.strip()
         truncated = len(send_text) > MAX_TEXT_CHARS
         if truncated:
