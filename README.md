@@ -45,6 +45,22 @@ A 2B parameter model based on the Qwen3.5 architecture. Runs in Instruct mode (t
 
 Model parameters are a loose proxy for brain synapses. Not biologically accurate, but you get the point.
 
+## In-app logging
+
+`app.py` sets up a file + console logger at the very top of the module, **before** any third-party imports. This matters: on Streamlit Cloud the container is opaque, and a crash during model download/load otherwise vanishes without a trace.
+
+The setup (`setup_logging()` in `app.py`) does three things:
+
+1. **File handler** — appends everything (DEBUG+) to `lobster.log`, which persists across reruns within a container lifetime.
+2. **Stream handler** — mirrors INFO+ to the original `sys.__stdout__`, so logs still appear in the Streamlit Cloud **Logs** panel.
+3. **stdout/stderr tee** — a `_TeeStream` class replaces `sys.stdout` and `sys.stderr`, routing any plain `print()`, native C-level output from `llama-cpp`, or Python tracebacks through the logger. A `sys.excepthook` catches uncaught exceptions at CRITICAL.
+
+Lifecycle calls in `download_model_files()`, `load_model()`, and `run_inference()` log start, duration, and result — so the log shows exactly how far the app got before any failure.
+
+An **"App logs (tail)"** expander at the bottom of the UI shows the last 80 lines, readable from the running app without touching the filesystem.
+
+This pattern is portable: copy the logging block (the `_TeeStream` class + `setup_logging()`) into any Streamlit app that runs heavy init or opaque native code, and you get persistent, debuggable logs for free.
+
 ## Tech stack
 
 - **[Streamlit](https://streamlit.io)** — UI + hosting (Community Cloud, free)

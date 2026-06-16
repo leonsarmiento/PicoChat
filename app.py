@@ -1,12 +1,12 @@
 """
-LobsterGPT - An 8B parameter text chatbot.
+LobsterGPT - A 2B parameter text chatbot.
 
 A rough but fun parallel: model parameters ~ brain synapses.
 A fruit fly has ~0.8B synapses. A jumping spider has ~2B.
-~8B parameters puts us well past jumping spider territory — bigger brain,
-still no need for small talk.
+2B parameters puts us in jumping spider territory — tiny, fast,
+with no need for small talk.
 
-Model: MechaEpstein-8000-GGUF (Q4_K_M)
+Model: Qwen3.5-2B-GGUF (Q8_0)
 Engine: llama-cpp-python
 """
 
@@ -110,8 +110,8 @@ from huggingface_hub import hf_hub_download
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "mradermacher/MechaEpstein-8000-GGUF"
-MODEL_FILE = "MechaEpstein-8000.Q4_K_M.gguf"
+MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
+MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 N_CTX = 4096
@@ -175,8 +175,8 @@ def run_inference(llm, text: str) -> str:
         temperature=0.7,
         top_p=0.8,
         top_k=20,
-        min_p=0.01,
-        repeat_penalty=1.1,
+        presence_penalty=1.5,
+        repeat_penalty=1.0,
     )
     out = response["choices"][0]["message"]["content"]
     log.info(f"Inference complete ({time.time() - t0:.1f}s): {len(out)} chars")
@@ -197,7 +197,7 @@ def main():
     # Header
     st.markdown("""
     # 🦞 LobsterGPT
-    *8B parameters. Well past jumping spider territory. No memory, no multiturn.*
+    *2B parameters. Jumping spider territory (if you squint). No memory, no multiturn.*
     """)
 
     st.caption(
@@ -207,7 +207,7 @@ def main():
     )
 
     st.caption(
-        "MechaEpstein-8000 (Q4_K_M) · Text limit: 500 chars · Text only"
+        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only"
     )
 
     st.divider()
@@ -266,7 +266,7 @@ def main():
             st.caption("No log file yet.")
 
     st.caption(
-        "LobsterGPT · MechaEpstein-8000 (Q4_K_M) · llama-cpp-python · "
+        "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
