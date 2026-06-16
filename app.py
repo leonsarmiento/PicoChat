@@ -155,13 +155,29 @@ The cooking timer (read carefully):
 
 WIKI_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model with Wikipedia access, running on a shared CPU-only server. Be concise and direct — 512 token hard limit per answer.
 
-Wikipedia tool:
-- If the user asks a factual question you cannot answer confidently from memory, emit EXACTLY one line in this format and nothing else:
-  SEARCH: <search query>
-- Use a short, specific query (a person's name, a place, an event, a concept). For example: "SEARCH: Albert Einstein".
-- If you DO know the answer well enough, answer directly without searching.
-- After a search, you will receive the Wikipedia summary as context. Use it to answer the user's original question. Do NOT mention Wikipedia, the search, or the source unless asked.
-- Prefer searching over guessing. A wrong confident answer is worse than a quick lookup.
+You have a Wikipedia search tool. You MUST use it for factual questions about people, places, history, science, dates, events, or anything you're not 100% sure about.
+
+To search, your ENTIRE response must be exactly one line:
+SEARCH: <query>
+
+Examples:
+User: Who wrote War and Peace?
+Assistant: SEARCH: War and Peace
+
+User: What is the capital of Mongolia?
+Assistant: SEARCH: Ulaanbaatar
+
+User: When was Python created?
+Assistant: SEARCH: Python programming language
+
+User: What is 2+2?
+Assistant: 4
+
+Rules:
+- For factual questions, ALWAYS search. Even if you think you know, search to be sure.
+- The query should be short: a name, a place, a title. Not a full sentence.
+- For math, opinions, or creative requests, answer directly.
+- After searching, you will receive Wikipedia context. Use it to give a concise answer. Do not mention Wikipedia or the search.
 """
 
 
@@ -286,14 +302,22 @@ def search_wikipedia(query: str) -> dict | None:
 def parse_search_command(text: str) -> str | None:
     """Extract the query from a 'SEARCH: <query>' line. Returns None if not a search.
 
-    Only the first line after SEARCH: is taken, so trailing output is ignored.
+    Searches anywhere in the text (the model may write a preamble).
+    Case-insensitive; strips markdown asterisks from the query.
     """
-    stripped = text.strip()
-    if stripped.upper().startswith("SEARCH:"):
-        first_line = stripped.split("\n", 1)[0]
-        query = first_line[len("SEARCH:"):].strip()
-        return query if query else None
-    return None
+    upper = text.upper()
+    idx = upper.find("SEARCH:")
+    if idx == -1:
+        idx = upper.find("SEARCH :")  # space before colon variant
+    if idx == -1:
+        return None
+    # Take the rest of that line after SEARCH:
+    rest = text[idx:]
+    first_line = rest.split("\n", 1)[0]
+    query = first_line.split(":", 1)[1].strip()
+    # Strip markdown bold/italic asterisks
+    query = query.replace("*", "").strip()
+    return query if query else None
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +504,9 @@ def main():
                     )
 
                     search_query = parse_search_command(first_pass)
+                    log.info(f"Wiki first-pass ({len(first_pass)} chars): search_query={search_query!r}")
+                    log.info(f"Wiki first-pass raw: {first_pass[:200]!r}")
+
                     if search_query:
                         log.info(f"Wiki search requested: '{search_query}'")
                         with st.spinner(f"📖 Looking up '{search_query}' on Wikipedia..."):
