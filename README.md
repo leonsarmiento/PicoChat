@@ -8,9 +8,10 @@ A text chatbot running **entirely inside Streamlit Community Cloud** — model d
 
 - Downloads a 2B parameter GGUF model from HuggingFace on cold start (~2.0 GB)
 - Runs inference locally using `llama-cpp-python` (CPU-only)
-- **Two modes**, toggled from the sidebar:
-    - **📖 Wikipedia mode** (default) — the lobster can search Wikipedia. A two-pass system: the model decides whether to search (emitting `SEARCH: <query>`), the app fetches a Wikipedia article, then the model answers with that context.
-    - **🦞 Cooking mode** — a hidden timer advances only during token generation. Over 2 minutes of cumulative generation, temperature climbs from 0.6 ("raw") to 5.0 ("fully cooked"), then resets. Short answers keep the lobster cool.
+- **Two independent toggles** in the sidebar, both off by default:
+    - **📖 Wikipedia search** — the lobster can search Wikipedia. A two-pass system: the model decides whether to search (emitting `SEARCH: <query>`), the app fetches a Wikipedia article, then the model answers with that context.
+    - **🍳 Cooking pot** — a hidden timer advances only during token generation. Over 2 minutes of cumulative generation, temperature climbs from 0.6 ("raw") to 5.0 ("fully cooked"), then resets. Short answers keep the lobster cool.
+- Four mode combinations: plain (own knowledge, temp 0.6), cooking only, Wikipedia only, or both. When both are on, searches run cool (temp 0.6) for reliability but the cooked brain reads the Wikipedia results at the current cooking temperature.
 - Remembers the last 4 turns (rolling window, no chat UI)
 - Accepts text prompts (500 char limit), text-only
 
@@ -30,11 +31,20 @@ Cold start:
 
 Wikipedia query flow (two-pass):
   1. Model sees the question + system prompt → emits "SEARCH: <query>" or answers directly
-  2. If SEARCH: app fetches Wikipedia article (TextExtracts API, capped at 2048 chars)
+  2. If SEARCH: app fetches Wikipedia article (TextExtracts API, capped at 4096 chars)
   3. Model answers with Wikipedia context injected into the system prompt
 
 Concurrent users: serialized via threading.Lock (llama.cpp is not thread-safe).
 ```
+
+Mode combinations:
+
+| Wiki | Cooking | Behavior |
+|------|---------|----------|
+| OFF | OFF | Plain mode, own knowledge, temp 0.6 |
+| OFF | ON | Cooking game, temperature climbs |
+| ON | OFF | Wikipedia search, temp 0.6 both passes |
+| ON | ON | Search runs cool (0.6), answer uses cooking temp — cooked brain reads Wikipedia |
 
 Subsequent requests: cached in memory until the container recycles.
 
@@ -51,6 +61,21 @@ We tested three configs. Lower quants hallucinate heavily on search decisions:
 | **2B Q8_0** | ~2.0 GB | ~108s | **Best quality, reliable SEARCH** |
 | 2B UD-Q4_K_XL | ~1.3 GB | ~60-80s | Hallucinated search queries, mixed entity names ("Rita Lee Veloso"), inserted "Wikipedia" into queries |
 | 0.8B Q8_0 | ~0.8 GB | ~102s | No faster on prefill (bottleneck is context length, not model size), weaker reasoning |
+
+## Inference parameters
+
+Qwen3.5 Instruct mode has [officially recommended sampling parameters](https://qwen.readthedocs.io). We use them in `run_inference()`:
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| `temperature` | 0.6–5.0 | Variable: 0.6 for wiki search pass and plain mode; climbs with cooking timer in cooking mode |
+| `top_p` | 0.8 | Fixed |
+| `top_k` | 20 | Fixed |
+| `min_p` | 0.0 | Fixed |
+| `presence_penalty` | 1.5 | Fixed |
+| `repeat_penalty` | 1.05 | Fixed. Was accidentally 1.0 (disabled) for most of development — fixing this to the recommended 1.05 reduced repetitive outputs significantly |
+
+Only `temperature` is dynamic; all others are fixed across every mode and pass.
 
 ## The brain size analogy
 
@@ -144,7 +169,7 @@ knob is the log filename (`LOG_FILE = "lobster.log"`).
 8. **llama.cpp is not thread-safe** — concurrent `create_chat_completion` calls on the same Llama context corrupt the KV cache and segfault. A `threading.Lock` serializes inference; concurrent users queue instead of crashing
 9. **Qwen's chat template rejects mid-conversation system messages** — only one system message at position 0 is allowed. Wiki context must be folded into the leading system prompt, not appended as a second one
 10. **Small models loop on tool-use patterns** — the 2B model would re-emit `SEARCH:` on the answer pass if it saw prior SEARCH outputs in history. Fix: strip SEARCH messages from history, use a dedicated answer-pass prompt that suppresses SEARCH, and cap first-pass `max_tokens` at 32
-11. **Prefill is the real bottleneck on CPU, not model size** — going from 2B to 0.8B barely moved the answer pass (~108s vs ~102s). Capping Wikipedia context from 8000 to 2048 chars cut it to ~60-80s. Input length matters more than parameter count
+11. **Prefill is the real bottleneck on CPU, not model size** — going from 2B to 0.8B barely moved the answer pass (~108s vs ~102s). Capping Wikipedia context from 8000 to 4096 chars cut it to ~60-80s. Input length matters more than parameter count
 12. **The REST summary endpoint returns one sentence** — `/api/rest_v1/page/summary/` gives ~74 chars. Use the TextExtracts API (`prop=extracts&explaintext=true`) for the full article body, then cap to fit your context budget
 
 ## Local development
@@ -170,6 +195,6 @@ That's it. No API keys, no GPU, no external services.
 
 ## Status
 
-**Working.** Two modes: Wikipedia search (two-pass, TextExtracts API) and cooking game (temperature climbs with generation time). 4-turn rolling memory, 500-char input, text-only. Inference serialized via `threading.Lock` for concurrent users.
+**Working.** Two independent mode toggles: Wikipedia search (two-pass, TextExtracts API) and cooking pot (temperature climbs with generation time). Both off by default for plain mode. Four combinations supported. 4-turn rolling memory, 500-char input, text-only. Inference serialized via `threading.Lock` for concurrent users.
 
 Typical wiki query latency on Streamlit Cloud (CPU, 12 threads): ~40-80s per answer depending on Wikipedia context length. Image support is blocked by llama-cpp-python limitations (see lesson 7).

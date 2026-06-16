@@ -405,8 +405,9 @@ def run_inference(llm, text: str, system_prompt: str, temperature: float, histor
             temperature=temperature,
             top_p=0.8,
             top_k=20,
+            min_p=0.0,
             presence_penalty=1.5,
-            repeat_penalty=1.0,
+            repeat_penalty=1.05,
         )
         gen_elapsed = time.time() - gen_t0
     elapsed = time.time() - t0  # includes any queue wait
