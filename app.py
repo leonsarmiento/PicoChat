@@ -568,15 +568,17 @@ def main():
                     if not (m["role"] == "assistant" and parse_search_command(m["content"]))
                 ]
 
-                # Pass 1: decide whether to search. Very low max_tokens forces
-                # a terse SEARCH: line and stops the model from hallucinating a
+                # Pass 1: decide whether to search. Low max_tokens forces a
+                # terse SEARCH: line and stops the model from hallucinating a
                 # full answer after the SEARCH that we'd just throw away.
+                # 32 (not lower): long entity names + occasional short preamble
+                # can exceed 20 tokens and truncate the query mid-word.
                 with st.spinner("The lobster is thinking..."):
                     first_pass, _ = run_inference(
                         llm, send_text,
                         st.session_state.system_prompt, WIKI_TEMP,
                         clean_hist,
-                        max_tokens=20,
+                        max_tokens=32,
                     )
 
                     search_query = parse_search_command(first_pass)
