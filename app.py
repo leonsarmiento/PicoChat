@@ -13,6 +13,7 @@ Engine: llama-cpp-python
 import logging
 import os
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime
@@ -212,6 +213,13 @@ def doneness_label(temp: float) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
+# llama.cpp is NOT thread-safe: concurrent create_chat_completion calls on
+# the same Llama context corrupt the KV cache and segfault. This lock
+# serializes inference across all sessions/threads. Concurrent users queue
+# instead of crashing.
+_INFERENCE_LOCK = threading.Lock()
+
+
 def run_inference(llm, text: str, system_prompt: str, temperature: float, history: list) -> tuple[str, float]:
     """Single-turn inference with rolling memory. Returns (response, elapsed_seconds)."""
     messages = []
@@ -222,20 +230,23 @@ def run_inference(llm, text: str, system_prompt: str, temperature: float, histor
 
     log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}, ctx_turns={len(history)//2}")
     t0 = time.time()
-    response = llm.create_chat_completion(
-        messages=messages,
-        max_tokens=MAX_TOKENS,
-        temperature=temperature,
-        top_p=0.8,
-        top_k=20,
-        presence_penalty=1.5,
-        repeat_penalty=1.0,
-    )
-    elapsed = time.time() - t0
+    with _INFERENCE_LOCK:
+        gen_t0 = time.time()
+        response = llm.create_chat_completion(
+            messages=messages,
+            max_tokens=MAX_TOKENS,
+            temperature=temperature,
+            top_p=0.8,
+            top_k=20,
+            presence_penalty=1.5,
+            repeat_penalty=1.0,
+        )
+        gen_elapsed = time.time() - gen_t0
+    elapsed = time.time() - t0  # includes any queue wait
     out = response["choices"][0]["message"]["content"]
-    log.info(f"Inference complete ({elapsed:.1f}s): {len(out)} chars")
+    log.info(f"Inference complete (gen {gen_elapsed:.1f}s, total {elapsed:.1f}s): {len(out)} chars")
     log.debug(f"Answer: {out[:300]!r}")
-    return out, elapsed
+    return out, gen_elapsed
 
 
 # ---------------------------------------------------------------------------
