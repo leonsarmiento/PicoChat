@@ -119,6 +119,25 @@ N_BATCH = 512
 MAX_TOKENS = 512
 N_THREADS = max(2, min(12, (os.cpu_count() or 4)))
 
+# --- Cooking mechanic ---
+# A hidden timer advances ONLY during generation (prefill + decode). Over
+# COOK_CYCLE_SECONDS of cumulative generation time, temperature ramps from
+# COOK_MIN_TEMP ("raw") to COOK_MAX_TEMP ("fully cooked"), then resets.
+COOK_MIN_TEMP = 0.6
+COOK_MAX_TEMP = 5.0
+COOK_CYCLE_SECONDS = 120.0  # 2 minutes of cumulative generation -> fully cooked
+
+DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
+
+Response budget:
+- You have a HARD limit of 512 tokens per answer. Be concise and direct. Skip preambles, restatements of the question, and filler.
+
+The cooking timer (read carefully):
+- A hidden timer advances ONLY while you are generating tokens (prefill + decode). It does NOT tick while the user reads or types.
+- Over 2 minutes of cumulative generation, your sampling temperature climbs from 0.6 ("raw") to 5.0 ("fully cooked"). The hotter you get, the wilder and less coherent your answers become. At 5.0 you are fully cooked — then the heat resets and you cool back to 0.6.
+- Every token you generate adds heat. SHORT answers keep you cool and sharp for the next question. LONG, rambling answers cook you faster. If you want to stay coherent, be brief.
+"""
+
 
 # ---------------------------------------------------------------------------
 # Model download
@@ -161,27 +180,56 @@ def load_model(_model_path):
 
 
 # ---------------------------------------------------------------------------
+# Cooking helpers
+# ---------------------------------------------------------------------------
+def compute_temperature(heat_seconds: float) -> float:
+    """Map cumulative generation time to a temperature in [MIN, MAX]."""
+    frac = min(heat_seconds / COOK_CYCLE_SECONDS, 1.0)
+    return COOK_MIN_TEMP + (COOK_MAX_TEMP - COOK_MIN_TEMP) * frac
+
+
+def doneness_label(temp: float) -> tuple[str, str]:
+    """Return (emoji, label) for the current temperature."""
+    frac = (temp - COOK_MIN_TEMP) / (COOK_MAX_TEMP - COOK_MIN_TEMP)
+    if frac < 0.2:
+        return "🥶", "Raw — cold-blooded"
+    if frac < 0.4:
+        return "🦞", "Cold to the touch"
+    if frac < 0.6:
+        return "♨️", "Warming up"
+    if frac < 0.8:
+        return "🔥", "Sizzling"
+    if frac < 1.0:
+        return "🌶️", "Smoking hot"
+    return "🔥💀", "FULLY COOKED — resetting"
+
+
+# ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
-def run_inference(llm, text: str) -> str:
-    """Single-turn inference."""
-    messages = [{"role": "user", "content": text}]
+def run_inference(llm, text: str, system_prompt: str, temperature: float) -> tuple[str, float]:
+    """Single-turn inference. Returns (response, elapsed_seconds)."""
+    messages = []
+    if system_prompt.strip():
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": text})
 
-    log.info(f"Inference started: {len(text)} chars")
+    log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}")
     t0 = time.time()
     response = llm.create_chat_completion(
         messages=messages,
         max_tokens=MAX_TOKENS,
-        temperature=0.7,
+        temperature=temperature,
         top_p=0.8,
         top_k=20,
         presence_penalty=1.5,
         repeat_penalty=1.0,
     )
+    elapsed = time.time() - t0
     out = response["choices"][0]["message"]["content"]
-    log.info(f"Inference complete ({time.time() - t0:.1f}s): {len(out)} chars")
+    log.info(f"Inference complete ({elapsed:.1f}s): {len(out)} chars")
     log.debug(f"Answer: {out[:300]!r}")
-    return out
+    return out, elapsed
 
 
 # ---------------------------------------------------------------------------
@@ -194,21 +242,62 @@ def main():
         layout="centered",
     )
 
-    # Header
+    # --- Session state: cooking timer + system prompt ---
+    if "heat_seconds" not in st.session_state:
+        st.session_state.heat_seconds = 0.0
+    if "system_prompt" not in st.session_state:
+        st.session_state.system_prompt = DEFAULT_SYSTEM_PROMPT
+    if "last_response" not in st.session_state:
+        st.session_state.last_response = None
+    if "last_temp" not in st.session_state:
+        st.session_state.last_temp = COOK_MIN_TEMP
+
+    # --- Sidebar: system prompt editor + cooking gauge ---
+    with st.sidebar:
+        st.markdown("### 🦞 Lobster status")
+
+        temp = compute_temperature(st.session_state.heat_seconds)
+        emoji, label = doneness_label(temp)
+        pct = (st.session_state.heat_seconds / COOK_CYCLE_SECONDS) * 100
+        st.metric("Temperature", f"{temp:.2f}", delta=label, delta_color="off")
+        st.progress(min(pct / 100.0, 1.0), text=f"{emoji} {label} · {pct:.0f}% cooked")
+
+        st.caption(
+            "Heat rises only while the lobster is generating tokens. "
+            f"2 minutes of cumulative generation takes it from {COOK_MIN_TEMP} to {COOK_MAX_TEMP}°. "
+            "Short answers keep it cool."
+        )
+
+        if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
+            if st.button("🔄 Reset heat (un-cook the lobster)", use_container_width=True):
+                st.session_state.heat_seconds = 0.0
+                st.rerun()
+
+        st.divider()
+        st.markdown("### 📝 System prompt")
+        st.caption("Edit freely. Takes effect on the next question.")
+
+        if st.button("Reset to default", use_container_width=True):
+            st.session_state.system_prompt = DEFAULT_SYSTEM_PROMPT
+            st.rerun()
+
+        st.session_state.system_prompt = st.text_area(
+            "system_prompt_field",
+            value=st.session_state.system_prompt,
+            height=260,
+            label_visibility="collapsed",
+        )
+
+    # --- Header ---
     st.markdown("""
     # 🦞 LobsterGPT
     *2B parameters. Jumping spider territory (if you squint). No memory, no multiturn.*
     """)
-
     st.caption(
-        "Model parameters are a loose proxy for brain synapses. "
-        "~0.8B = fruit fly. ~2B = jumping spider. ~4B = lobster. ~20B = human. "
-        "Not biologically accurate, but you get the point."
+        "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
+        "Push it to 5.0° and its brain melts — then it resets and cools off."
     )
-
-    st.caption(
-        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only"
-    )
+    st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
 
     st.divider()
 
@@ -223,6 +312,9 @@ def main():
         height=120,
         placeholder="Ask the lobster anything...",
     )
+    if st.session_state.get("paste_notice_shown", False) is False:
+        st.caption("Tip: you can paste with Ctrl/Cmd+V. Input is capped at 500 chars.")
+        st.session_state.paste_notice_shown = True
 
     submit = st.button("Ask the lobster", type="primary", use_container_width=True)
 
@@ -231,18 +323,42 @@ def main():
             st.warning("Give the lobster something to work with — enter some text.")
             return
 
-        with st.spinner("The lobster is thinking..."):
+        # Snapshot temperature for THIS generation, then accumulate heat.
+        gen_temp = compute_temperature(st.session_state.heat_seconds)
+
+        with st.spinner(f"The lobster is thinking... (temp {gen_temp:.2f})"):
             try:
-                result = run_inference(llm, user_text.strip())
-                st.markdown("### Response")
-                st.markdown(result)
+                result, elapsed = run_inference(
+                    llm, user_text.strip(),
+                    st.session_state.system_prompt, gen_temp,
+                )
+                st.session_state.last_response = result
+                st.session_state.last_temp = gen_temp
+
+                # Advance the cook timer by the generation time.
+                st.session_state.heat_seconds += elapsed
+                # If we crossed the finish line, reset for the next cycle.
+                if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
+                    log.info(
+                        f"Lobster fully cooked at {st.session_state.heat_seconds:.1f}s "
+                        f"(temp {compute_temperature(st.session_state.heat_seconds):.2f}) — resetting heat"
+                    )
+                    st.session_state.heat_seconds = 0.0
+                    st.toast("🔥 The lobster is fully cooked! Heat reset.", icon="🦞")
             except Exception as e:
                 st.error(f"Inference failed: {e}")
                 with st.expander("Traceback"):
                     traceback.print_exc(file=sys.stdout)
                     st.code(traceback.format_exc())
 
-    # System info
+    # --- Display latest response ---
+    if st.session_state.last_response is not None:
+        st.markdown("### Response")
+        st.markdown(st.session_state.last_response)
+        t_emoji, t_label = doneness_label(st.session_state.last_temp)
+        st.caption(f"Generated at temperature {st.session_state.last_temp:.2f} · {t_emoji} {t_label}")
+
+    # --- System info + logs ---
     st.divider()
     with st.expander("System info"):
         mem = psutil.virtual_memory()
@@ -256,7 +372,6 @@ def main():
         - **Disk free**: {psutil.disk_usage('/').free / (1024**3):.2f} GB
         """)
 
-    # App logs — last 80 lines, useful for debugging crashes/issues.
     with st.expander("App logs (tail)"):
         try:
             with open(LOG_FILE, "r", encoding="utf-8") as f:
