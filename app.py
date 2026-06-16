@@ -333,15 +333,18 @@ _INFERENCE_LOCK = threading.Lock()
 def run_inference(llm, text: str, system_prompt: str, temperature: float, history: list, wiki_context: str | None = None, max_tokens: int = MAX_TOKENS) -> tuple[str, float]:
     """Single-turn inference with rolling memory. Returns (response, gen_seconds).
 
-    If wiki_context is provided, it is injected as a system message before the
-    user prompt so the model can ground its answer in the Wikipedia summary.
+    If wiki_context is provided, it is folded into the leading system message
+    so the model can ground its answer in the Wikipedia summary. Qwen's chat
+    template only allows a system message at position 0, so we must NOT append
+    a second system message after the history.
     """
-    messages = []
-    if system_prompt.strip():
-        messages.append({"role": "system", "content": system_prompt})
-    messages.extend(history)  # last MEMORY_TURNS exchanges
+    sys_content = system_prompt.strip()
     if wiki_context:
-        messages.append({"role": "system", "content": wiki_context})
+        sys_content = f"{sys_content}\n\n{wiki_context}" if sys_content else wiki_context
+    messages = []
+    if sys_content:
+        messages.append({"role": "system", "content": sys_content})
+    messages.extend(history)  # last MEMORY_TURNS exchanges
     messages.append({"role": "user", "content": text})
 
     log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}, ctx_turns={len(history)//2}, wiki={'yes' if wiki_context else 'no'}")
