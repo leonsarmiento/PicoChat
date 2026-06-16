@@ -1,12 +1,12 @@
 """
-LobsterGPT - A 2B parameter text chatbot.
+LobsterGPT - A 0.8B parameter text chatbot.
 
 A rough but fun parallel: model parameters ~ brain synapses.
 A fruit fly has ~0.8B synapses. A jumping spider has ~2B.
-2B parameters puts us in jumping spider territory — tiny, fast,
+0.8B parameters puts us in fruit fly territory — tiny, fast,
 with no need for small talk.
 
-Model: Qwen3.5-2B-GGUF (Q8_0)
+Model: Qwen3.5-0.8B-GGUF (Q8_0)
 Engine: llama-cpp-python
 """
 
@@ -112,8 +112,8 @@ from huggingface_hub import hf_hub_download
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
-MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
+MODEL_REPO = "unsloth/Qwen3.5-0.8B-GGUF"
+MODEL_FILE = "Qwen3.5-0.8B-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 N_CTX = 20000
@@ -143,7 +143,7 @@ WIKI_MODE_DEFAULT = True
 WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 WIKI_MAX_CHARS = 8000  # cap wiki extract; ~2000 tokens, plenty of room in 20k context
 
-DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
+DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 0.8B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
 
 Response budget:
 - You have a HARD limit of 512 tokens per answer. Be concise and direct. Skip preambles, restatements of the question, and filler.
@@ -154,7 +154,7 @@ The cooking timer (read carefully):
 - Every token you generate adds heat. SHORT answers keep you cool and sharp for the next question. LONG, rambling answers cook you faster. If you want to stay coherent, be brief.
 """
 
-WIKI_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model with Wikipedia access, running on a shared CPU-only server. Be concise and direct — 512 token hard limit per answer.
+WIKI_SYSTEM_PROMPT = """You are LobsterGPT, a small 0.8B-parameter language model with Wikipedia access, running on a shared CPU-only server. Be concise and direct — 512 token hard limit per answer.
 
 You have a Wikipedia search tool. You MUST use it for factual questions about people, places, history, science, dates, events, or anything you're not 100% sure about.
 
@@ -184,7 +184,7 @@ Rules:
 """
 
 # System prompt for the ANSWER pass (second pass) after wiki context is fetched.
-# This MUST suppress SEARCH output — otherwise the 2B model loops, emitting
+# This MUST suppress SEARCH output — otherwise the model loops, emitting
 # SEARCH again instead of answering. The prompt above teaches SEARCH; this one
 # teaches "you already have the info, just answer".
 WIKI_ANSWER_PROMPT = """You are LobsterGPT. Wikipedia context is provided for you below. Use it to answer the user's question.
@@ -511,7 +511,7 @@ def main():
     # --- Header ---
     st.markdown("""
     # 🦞 LobsterGPT
-    *2B parameters. Jumping spider territory (if you squint). Remembers the last 4 turns.*
+    *0.8B parameters. Fruit fly territory (if you squint). Remembers the last 4 turns.*
     """)
     if wiki_mode:
         st.caption(
@@ -523,7 +523,7 @@ def main():
             "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
             "Push it to 5.0° and its brain melts — then it resets and cools off."
         )
-    st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
+    st.caption("Qwen3.5-0.8B (Q8_0) · Text limit: 500 chars · Text only")
 
     st.divider()
 
@@ -685,7 +685,7 @@ def main():
             st.caption("No log file yet.")
 
     st.caption(
-        "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
+        "LobsterGPT · Qwen3.5-0.8B (Q8_0) · llama-cpp-python · "
         "Remembers the last 4 turns · toggle Wikipedia/cooking mode in the sidebar."
     )
 
