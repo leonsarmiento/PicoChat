@@ -1,17 +1,15 @@
 """
-LobsterGPT - A 2B parameter vision-language chatbot.
+LobsterGPT - An 8B parameter text chatbot.
 
 A rough but fun parallel: model parameters ~ brain synapses.
 A fruit fly has ~0.8B synapses. A jumping spider has ~2B.
-2B parameters puts us in jumping spider territory — tiny, fast,
-with excellent vision and no need for small talk.
+~8B parameters puts us well past jumping spider territory — bigger brain,
+still no need for small talk.
 
-Model: Qwen3.5-2B-GGUF (Q8_0) + mmproj vision encoder
+Model: MechaEpstein-8000-GGUF (Q4_K_M)
 Engine: llama-cpp-python
 """
 
-import base64
-import io
 import os
 import sys
 import traceback
@@ -21,17 +19,14 @@ import platform
 import psutil
 import streamlit as st
 from huggingface_hub import hf_hub_download
-from PIL import Image
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
-MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
-MMPROJ_FILE = "mmproj-BF16.gguf"
+MODEL_REPO = "mradermacher/MechaEpstein-8000-GGUF"
+MODEL_FILE = "MechaEpstein-8000.Q4_K_M.gguf"
 
 MAX_TEXT_CHARS = 500
-MAX_IMAGE_PX = 1072
 N_CTX = 4096
 N_BATCH = 512
 MAX_TOKENS = 512
@@ -43,31 +38,26 @@ N_THREADS = max(2, min(12, (os.cpu_count() or 4)))
 # ---------------------------------------------------------------------------
 @st.cache_resource
 def download_model_files():
-    """Download main GGUF model + vision projection from HuggingFace."""
+    """Download main GGUF model from HuggingFace."""
     st.info("Downloading model files from HuggingFace (first run only)...")
     model_path = hf_hub_download(
         repo_id=MODEL_REPO,
         filename=MODEL_FILE,
     )
-    mmproj_path = hf_hub_download(
-        repo_id=MODEL_REPO,
-        filename=MMPROJ_FILE,
-    )
-    return model_path, mmproj_path
+    return model_path
 
 
 # ---------------------------------------------------------------------------
 # Model loading
 # ---------------------------------------------------------------------------
 @st.cache_resource
-def load_model(_model_path, _mmproj_path):
-    """Load the model with vision support."""
+def load_model(_model_path):
+    """Load the model."""
     from llama_cpp import Llama
 
     st.info("Loading model into memory...")
     llm = Llama(
         model_path=_model_path,
-        mmproj=_mmproj_path,
         n_ctx=N_CTX,
         n_batch=N_BATCH,
         n_gpu_layers=0,  # CPU only
@@ -78,50 +68,11 @@ def load_model(_model_path, _mmproj_path):
 
 
 # ---------------------------------------------------------------------------
-# Image preprocessing
-# ---------------------------------------------------------------------------
-def preprocess_image(uploaded_file) -> str:
-    """Resize image to max 1072px longest side, return base64 data URI."""
-    img = Image.open(uploaded_file)
-
-    # Convert to RGB if necessary (handles PNG with alpha, etc.)
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-
-    # Resize so longest side <= MAX_IMAGE_PX
-    w, h = img.size
-    if max(w, h) > MAX_IMAGE_PX:
-        ratio = MAX_IMAGE_PX / max(w, h)
-        new_w = int(w * ratio)
-        new_h = int(h * ratio)
-        img = img.resize((new_w, new_h), Image.LANCZOS)
-
-    # Encode to base64
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=85)
-    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-    return f"data:image/jpeg;base64,{b64}"
-
-
-# ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
-def run_inference(llm, text: str, image_b64: str | None = None) -> str:
-    """Single-turn inference with optional image input."""
-    content = []
-
-    if image_b64:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": image_b64},
-        })
-
-    content.append({
-        "type": "text",
-        "text": text,
-    })
-
-    messages = [{"role": "user", "content": content}]
+def run_inference(llm, text: str) -> str:
+    """Single-turn inference."""
+    messages = [{"role": "user", "content": text}]
 
     response = llm.create_chat_completion(
         messages=messages,
@@ -129,8 +80,8 @@ def run_inference(llm, text: str, image_b64: str | None = None) -> str:
         temperature=0.7,
         top_p=0.8,
         top_k=20,
-        presence_penalty=1.5,
-        repeat_penalty=1.0,
+        min_p=0.01,
+        repeat_penalty=1.1,
     )
 
     return response["choices"][0]["message"]["content"]
@@ -149,7 +100,7 @@ def main():
     # Header
     st.markdown("""
     # 🦞 LobsterGPT
-    *2B parameters. Jumping spider territory (if you squint). No memory, no multiturn.*
+    *8B parameters. Well past jumping spider territory. No memory, no multiturn.*
     """)
 
     st.caption(
@@ -159,14 +110,14 @@ def main():
     )
 
     st.caption(
-        "Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only"
+        "MechaEpstein-8000 (Q4_K_M) · Text limit: 500 chars · Text only"
     )
 
     st.divider()
 
     # --- Model initialization (cached across reruns) ---
-    model_path, mmproj_path = download_model_files()
-    llm = load_model(model_path, mmproj_path)
+    model_path = download_model_files()
+    llm = load_model(model_path)
 
     # --- Input area ---
     user_text = st.text_area(
@@ -209,7 +160,7 @@ def main():
         """)
 
     st.caption(
-        "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
+        "LobsterGPT · MechaEpstein-8000 (Q4_K_M) · llama-cpp-python · "
         "No conversation memory — each prompt is independent."
     )
 
