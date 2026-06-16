@@ -306,15 +306,24 @@ def main():
     llm = load_model(model_path)
 
     # --- Input area ---
+    # NOTE: no max_chars on the widget — Streamlit silently rejects a paste
+    # that exceeds the cap. We enforce the limit ourselves so paste always
+    # lands and the user sees exactly what got truncated.
     user_text = st.text_area(
         "Your prompt",
-        max_chars=MAX_TEXT_CHARS,
         height=120,
         placeholder="Ask the lobster anything...",
+        key="prompt_input",
     )
-    if st.session_state.get("paste_notice_shown", False) is False:
-        st.caption("Tip: you can paste with Ctrl/Cmd+V. Input is capped at 500 chars.")
-        st.session_state.paste_notice_shown = True
+
+    char_count = len(user_text)
+    over_by = max(0, char_count - MAX_TEXT_CHARS)
+    if over_by > 0:
+        st.warning(
+            f"⚠️ This is {char_count} chars — {over_by} over the {MAX_TEXT_CHARS} limit. "
+            f"Only the first {MAX_TEXT_CHARS} will be sent."
+        )
+    st.caption(f"{char_count}/{MAX_TEXT_CHARS} chars")
 
     submit = st.button("Ask the lobster", type="primary", use_container_width=True)
 
@@ -323,13 +332,16 @@ def main():
             st.warning("Give the lobster something to work with — enter some text.")
             return
 
+        # Enforce the char limit at send time (paste is allowed to exceed it).
+        send_text = user_text.strip()[:MAX_TEXT_CHARS]
+
         # Snapshot temperature for THIS generation, then accumulate heat.
         gen_temp = compute_temperature(st.session_state.heat_seconds)
 
         with st.spinner(f"The lobster is thinking... (temp {gen_temp:.2f})"):
             try:
                 result, elapsed = run_inference(
-                    llm, user_text.strip(),
+                    llm, send_text,
                     st.session_state.system_prompt, gen_temp,
                 )
                 st.session_state.last_response = result
