@@ -127,6 +127,11 @@ COOK_MIN_TEMP = 0.6
 COOK_MAX_TEMP = 5.0
 COOK_CYCLE_SECONDS = 120.0  # 2 minutes of cumulative generation -> fully cooked
 
+# --- Memory ---
+# The lobster remembers the last MEMORY_TURNS exchanges (1 turn = 1 user +
+# 1 assistant). These are passed as context silently — no chat UI.
+MEMORY_TURNS = 4
+
 DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
 
 Response budget:
@@ -146,7 +151,7 @@ The cooking timer (read carefully):
 def download_model_files():
     """Download main GGUF model from HuggingFace."""
     log.info(f"Downloading {MODEL_REPO}/{MODEL_FILE} ...")
-    st.info("Downloading model files from HuggingFace (first run only)...")
+    st.info("🦞 Catching a LLM-obster from HuggingFace (fresh catch of the day)...")
     t0 = time.time()
     model_path = hf_hub_download(
         repo_id=MODEL_REPO,
@@ -165,7 +170,7 @@ def load_model(_model_path):
     from llama_cpp import Llama
 
     log.info(f"Loading model into memory: {_model_path} (n_ctx={N_CTX}, threads={N_THREADS})")
-    st.info("Loading model into memory...")
+    st.info("🦞 Lobster is in the pot (LLM in server memory)...")
     t0 = time.time()
     llm = Llama(
         model_path=_model_path,
@@ -207,14 +212,15 @@ def doneness_label(temp: float) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
-def run_inference(llm, text: str, system_prompt: str, temperature: float) -> tuple[str, float]:
-    """Single-turn inference. Returns (response, elapsed_seconds)."""
+def run_inference(llm, text: str, system_prompt: str, temperature: float, history: list) -> tuple[str, float]:
+    """Single-turn inference with rolling memory. Returns (response, elapsed_seconds)."""
     messages = []
     if system_prompt.strip():
         messages.append({"role": "system", "content": system_prompt})
+    messages.extend(history)  # last MEMORY_TURNS exchanges
     messages.append({"role": "user", "content": text})
 
-    log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}")
+    log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}, ctx_turns={len(history)//2}")
     t0 = time.time()
     response = llm.create_chat_completion(
         messages=messages,
@@ -242,7 +248,7 @@ def main():
         layout="centered",
     )
 
-    # --- Session state: cooking timer + system prompt ---
+    # --- Session state: cooking timer + system prompt + memory ---
     if "heat_seconds" not in st.session_state:
         st.session_state.heat_seconds = 0.0
     if "system_prompt" not in st.session_state:
@@ -251,6 +257,8 @@ def main():
         st.session_state.last_response = None
     if "last_temp" not in st.session_state:
         st.session_state.last_temp = COOK_MIN_TEMP
+    if "history" not in st.session_state:
+        st.session_state.history = []  # list of {role, content} dicts, rolling window
 
     # --- Sidebar: system prompt editor + cooking gauge ---
     with st.sidebar:
@@ -273,6 +281,11 @@ def main():
                 st.session_state.heat_seconds = 0.0
                 st.rerun()
 
+        if st.session_state.history:
+            if st.button("🧽 Clear memory (forget last turns)", use_container_width=True):
+                st.session_state.history = []
+                st.rerun()
+
         st.divider()
         st.markdown("### 📝 System prompt")
         st.caption("Edit freely. Takes effect on the next question.")
@@ -291,7 +304,7 @@ def main():
     # --- Header ---
     st.markdown("""
     # 🦞 LobsterGPT
-    *2B parameters. Jumping spider territory (if you squint). No memory, no multiturn.*
+    *2B parameters. Jumping spider territory (if you squint). Remembers the last 4 turns, gets cooked as it talks.*
     """)
     st.caption(
         "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
@@ -305,35 +318,16 @@ def main():
     model_path = download_model_files()
     llm = load_model(model_path)
 
-    # --- Input area ---
-    # NOTE: no max_chars on the widget — Streamlit silently rejects a paste
-    # that exceeds the cap. We enforce the limit ourselves so paste always
-    # lands and the user sees exactly what got truncated.
-    user_text = st.text_area(
-        "Your prompt",
-        height=120,
-        placeholder="Ask the lobster anything...",
-        key="prompt_input",
-    )
+    # --- Input (chat_input: pinned to bottom) ---
+    # Desktop: cmd+enter (Mac) / ctrl+enter (Win/Linux) to send, Enter = newline.
+    st.caption("Press **⌘/Ctrl + Enter** to send · paste is supported")
+    prompt = st.chat_input("Ask the lobster anything...")
 
-    char_count = len(user_text)
-    over_by = max(0, char_count - MAX_TEXT_CHARS)
-    if over_by > 0:
-        st.warning(
-            f"⚠️ This is {char_count} chars — {over_by} over the {MAX_TEXT_CHARS} limit. "
-            f"Only the first {MAX_TEXT_CHARS} will be sent."
-        )
-    st.caption(f"{char_count}/{MAX_TEXT_CHARS} chars")
-
-    submit = st.button("Ask the lobster", type="primary", use_container_width=True)
-
-    if submit:
-        if not user_text.strip():
-            st.warning("Give the lobster something to work with — enter some text.")
-            return
-
-        # Enforce the char limit at send time (paste is allowed to exceed it).
-        send_text = user_text.strip()[:MAX_TEXT_CHARS]
+    if prompt:
+        send_text = prompt.strip()
+        truncated = len(send_text) > MAX_TEXT_CHARS
+        if truncated:
+            send_text = send_text[:MAX_TEXT_CHARS]
 
         # Snapshot temperature for THIS generation, then accumulate heat.
         gen_temp = compute_temperature(st.session_state.heat_seconds)
@@ -343,9 +337,18 @@ def main():
                 result, elapsed = run_inference(
                     llm, send_text,
                     st.session_state.system_prompt, gen_temp,
+                    st.session_state.history,
                 )
                 st.session_state.last_response = result
                 st.session_state.last_temp = gen_temp
+                st.session_state.last_truncated = truncated
+
+                # Roll the memory window: append this exchange, keep last MEMORY_TURNS.
+                st.session_state.history.append({"role": "user", "content": send_text})
+                st.session_state.history.append({"role": "assistant", "content": result})
+                max_msgs = MEMORY_TURNS * 2
+                if len(st.session_state.history) > max_msgs:
+                    st.session_state.history = st.session_state.history[-max_msgs:]
 
                 # Advance the cook timer by the generation time.
                 st.session_state.heat_seconds += elapsed
@@ -369,6 +372,10 @@ def main():
         st.markdown(st.session_state.last_response)
         t_emoji, t_label = doneness_label(st.session_state.last_temp)
         st.caption(f"Generated at temperature {st.session_state.last_temp:.2f} · {t_emoji} {t_label}")
+        if st.session_state.get("last_truncated", False):
+            st.caption(f"✂️ Your prompt was truncated to {MAX_TEXT_CHARS} chars.")
+        turns_held = len(st.session_state.history) // 2
+        st.caption(f"🧠 Lobster remembers the last {turns_held} turn(s).")
 
     # --- System info + logs ---
     st.divider()
@@ -394,7 +401,7 @@ def main():
 
     st.caption(
         "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
-        "No conversation memory — each prompt is independent."
+        "Remembers the last 4 turns — each prompt builds on recent context."
     )
 
 
