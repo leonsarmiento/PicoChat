@@ -47,19 +47,62 @@ Model parameters are a loose proxy for brain synapses. Not biologically accurate
 
 ## In-app logging
 
-`app.py` sets up a file + console logger at the very top of the module, **before** any third-party imports. This matters: on Streamlit Cloud the container is opaque, and a crash during model download/load otherwise vanishes without a trace.
+On Streamlit Community Cloud the container is opaque: there is no SSH, no
+filesystem browser, and the only visibility you get is the **Logs** panel,
+which shows stdout/stderr from the running process. If a crash happens during
+model download, inside native C code (`llama-cpp`), or in a Jinja chat-template
+formatter, it vanishes without a trace — unless you capture it yourself.
 
-The setup (`setup_logging()` in `app.py`) does three things:
+`app.py` solves this with a self-contained logging block at the very top of the
+module, **before** any third-party imports. It proved its weight repeatedly:
+it caught a `Segmentation fault` from concurrent inference, a
+`ValueError: System message must be at the beginning` from Qwen's chat
+template, and let us trace exactly how far each request got before failing.
 
-1. **File handler** — appends everything (DEBUG+) to `lobster.log`, which persists across reruns within a container lifetime.
-2. **Stream handler** — mirrors INFO+ to the original `sys.__stdout__`, so logs still appear in the Streamlit Cloud **Logs** panel.
-3. **stdout/stderr tee** — a `_TeeStream` class replaces `sys.stdout` and `sys.stderr`, routing any plain `print()`, native C-level output from `llama-cpp`, or Python tracebacks through the logger. A `sys.excepthook` catches uncaught exceptions at CRITICAL.
+### How it works
 
-Lifecycle calls in `download_model_files()`, `load_model()`, and `run_inference()` log start, duration, and result — so the log shows exactly how far the app got before any failure.
+`setup_logging()` (in `app.py`) wires up three layers:
 
-An **"App logs (tail)"** expander at the bottom of the UI shows the last 80 lines, readable from the running app without touching the filesystem.
+1. **File handler** — appends everything (DEBUG+) to `lobster.log`, which
+   persists across reruns within a container lifetime. Survives Streamlit's
+   "Updated app!" reloads.
+2. **Stream handler** — mirrors INFO+ to the original `sys.__stdout__`, so the
+   same logs also appear in the Streamlit Cloud **Logs** panel.
+3. **stdout/stderr tee** — a `_TeeStream` class replaces `sys.stdout` and
+   `sys.stderr`, routing any plain `print()`, native C-level output from
+   `llama-cpp` (e.g. `find_slot: non-consecutive token position...`), or Python
+   tracebacks through the logger. Line-buffered, so partial writes are stitched
+   before logging. A `sys.excepthook` catches uncaught exceptions at CRITICAL.
 
-This pattern is portable: copy the logging block (the `_TeeStream` class + `setup_logging()`) into any Streamlit app that runs heavy init or opaque native code, and you get persistent, debuggable logs for free.
+Lifecycle calls in `download_model_files()`, `load_model()`, and
+`run_inference()` log start, duration, and result — so the log reads like a
+narrative of exactly how far the app got before any failure:
+
+```
+[INFO] Inference started: 35 chars, temp=0.60, ctx_turns=0, wiki=no
+[INFO] Inference complete (gen 9.4s, total 9.4s): 20 chars
+[INFO] Wiki first-pass (20 chars): search_query='Pitty singer'
+[INFO] Wiki: fetched 'Pitty' (74 chars)
+[INFO] Inference started: 35 chars, temp=0.60, ctx_turns=0, wiki=yes
+[ERROR] ValueError: System message must be at the beginning.
+```
+
+An **"App logs (tail)"** expander at the bottom of the UI shows the last 80
+lines, readable from the running app without touching the filesystem — useful
+when you're debugging from a phone and can't open the Logs panel.
+
+### Copying it to other projects
+
+The pattern is portable and framework-agnostic (works for any Streamlit app
+that runs heavy init or opaque native code). Copy:
+
+- the `_TeeStream` class
+- the `setup_logging()` function
+- the `log = setup_logging()` call placed **before** third-party imports
+- an `st.expander("App logs (tail)")` block in your UI
+
+That gives you persistent, debuggable logs for free. The only project-specific
+knob is the log filename (`LOG_FILE = "lobster.log"`).
 
 ## Tech stack
 

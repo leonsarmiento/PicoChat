@@ -175,9 +175,24 @@ Assistant: 4
 
 Rules:
 - For factual questions, ALWAYS search. Even if you think you know, search to be sure.
-- The query should be short: a name, a place, a title. Not a full sentence.
+- The query is ONE word or a short proper noun — never a sentence.
+  BAD:  SEARCH: the Brazilian singer Pitty
+  GOOD: SEARCH: Pitty
 - For math, opinions, or creative requests, answer directly.
 - After searching, you will receive Wikipedia context. Use it to give a concise answer. Do not mention Wikipedia or the search.
+"""
+
+# System prompt for the ANSWER pass (second pass) after wiki context is fetched.
+# This MUST suppress SEARCH output — otherwise the 2B model loops, emitting
+# SEARCH again instead of answering. The prompt above teaches SEARCH; this one
+# teaches "you already have the info, just answer".
+WIKI_ANSWER_PROMPT = """You are LobsterGPT. Wikipedia context is provided for you below. Use it to answer the user's question.
+
+Rules:
+- Answer directly in plain text. Do NOT write "SEARCH:" — you already have the information.
+- Be brief and factual. 512 token limit.
+- Do not mention Wikipedia or that you searched.
+- If the context does not answer the question, say so in one sentence.
 """
 
 
@@ -541,10 +556,18 @@ def main():
                             with st.spinner("The lobster is reading Wikipedia..."):
                                 result, _ = run_inference(
                                     llm, send_text,
-                                    st.session_state.system_prompt, WIKI_TEMP,
+                                    WIKI_ANSWER_PROMPT, WIKI_TEMP,
                                     st.session_state.history,
                                     wiki_context=wiki_result["context"],
+                                    max_tokens=MAX_TOKENS,
                                 )
+                            # Safety net: if the model STILL emits SEARCH on the
+                            # answer pass (it shouldn't, but 2B models echo
+                            # patterns), show the Wikipedia extract verbatim so
+                            # the user gets the information instead of a loop.
+                            if parse_search_command(result):
+                                log.warning(f"Wiki answer-pass emitted SEARCH despite WIKI_ANSWER_PROMPT; falling back to extract. raw={result[:120]!r}")
+                                result = wiki_result["extract"]
                         else:
                             result = first_pass  # search failed, show whatever the model said
                     else:
