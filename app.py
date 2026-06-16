@@ -134,14 +134,16 @@ COOK_CYCLE_SECONDS = 120.0  # 2 minutes of cumulative generation -> fully cooked
 # 1 assistant). These are passed as context silently — no chat UI.
 MEMORY_TURNS = 4
 
-# --- Wikipedia mode ---
-# When wiki mode is ON (default), cooking is disabled and the model runs at
-# a fixed WIKI_TEMP. The model may emit "SEARCH: <query>" to look something
-# up; we fetch a Wikipedia article and re-run with that context.
+# --- Modes ---
+# Two independent toggles: Wikipedia search and cooking pot.
+# Wiki ON: two-pass system (model emits SEARCH:, app fetches article).
+# Cooking ON: temperature climbs with cumulative generation time.
+# Both can be on simultaneously.
 WIKI_TEMP = 0.6
-WIKI_MODE_DEFAULT = True
+WIKI_DEFAULT = False
+COOKING_DEFAULT = False
 WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/"
-WIKI_MAX_CHARS = 2048  # cap wiki extract; ~512 tokens, keeps prefill fast
+WIKI_MAX_CHARS = 4096  # cap wiki extract; ~1000 tokens, good detail without excessive prefill
 
 DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
 
@@ -195,6 +197,18 @@ Rules:
 - Do not mention Wikipedia or that you searched.
 - If the context does not answer the question, say so in one sentence.
 """
+
+PLAIN_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a shared CPU-only server. Be concise and direct. You have a 512 token limit per answer. Skip preambles, restatements of the question, and filler. Answer from your own knowledge.
+"""
+
+
+def default_prompt_for_mode(wiki_enabled: bool, cooking_enabled: bool) -> str:
+    """Return the default system prompt for the given mode combination."""
+    if wiki_enabled:
+        return WIKI_SYSTEM_PROMPT
+    if cooking_enabled:
+        return DEFAULT_SYSTEM_PROMPT
+    return PLAIN_SYSTEM_PROMPT
 
 
 # ---------------------------------------------------------------------------
@@ -412,63 +426,70 @@ def main():
         layout="centered",
     )
 
-    # --- Session state: cooking timer + system prompt + memory + wiki ---
+    # --- Session state: cooking timer + system prompt + memory + modes ---
     if "heat_seconds" not in st.session_state:
         st.session_state.heat_seconds = 0.0
     if "last_response" not in st.session_state:
         st.session_state.last_response = None
     if "last_temp" not in st.session_state:
-        st.session_state.last_temp = COOK_MIN_TEMP
+        st.session_state.last_temp = WIKI_TEMP
     if "history" not in st.session_state:
         st.session_state.history = []  # list of {role, content} dicts, rolling window
-    if "wiki_mode" not in st.session_state:
-        st.session_state.wiki_mode = WIKI_MODE_DEFAULT
+    # Two independent toggles, both OFF by default.
+    if "wiki_enabled" not in st.session_state:
+        st.session_state.wiki_enabled = WIKI_DEFAULT
+    if "cooking_enabled" not in st.session_state:
+        st.session_state.cooking_enabled = COOKING_DEFAULT
     if "last_wiki_result" not in st.session_state:
         st.session_state.last_wiki_result = None
-    # Initialize system prompt to match the default mode.
+    # Initialize system prompt to match the default mode (both off = plain).
     if "system_prompt" not in st.session_state:
-        st.session_state.system_prompt = WIKI_SYSTEM_PROMPT if WIKI_MODE_DEFAULT else DEFAULT_SYSTEM_PROMPT
-    if "last_wiki_mode" not in st.session_state:
-        st.session_state.last_wiki_mode = WIKI_MODE_DEFAULT
+        st.session_state.system_prompt = default_prompt_for_mode(WIKI_DEFAULT, COOKING_DEFAULT)
+    # Track mode changes for auto-swapping the system prompt.
+    if "prev_wiki" not in st.session_state:
+        st.session_state.prev_wiki = WIKI_DEFAULT
+    if "prev_cooking" not in st.session_state:
+        st.session_state.prev_cooking = COOKING_DEFAULT
 
-    # --- Sidebar: mode toggle + status + system prompt editor ---
+    # --- Sidebar: mode toggles + status + system prompt editor ---
     with st.sidebar:
-        st.markdown("### 🦞 Mode")
+        st.markdown("### 🦞 Modes")
 
-        wiki_mode = st.toggle(
-            "📖 Wikipedia mode",
-            value=st.session_state.wiki_mode,
-            help="ON: Wikipedia access, fixed temp (0.6), no cooking. OFF: the cooking game — temperature climbs with each answer.",
+        wiki_enabled = st.toggle(
+            "📖 Wikipedia search",
+            value=st.session_state.wiki_enabled,
+            help="ON: the lobster can search Wikipedia for facts (two-pass, temp 0.6 for search).",
         )
-        st.session_state.wiki_mode = wiki_mode
+        st.session_state.wiki_enabled = wiki_enabled
+
+        cooking_enabled = st.toggle(
+            "🍳 Cooking pot",
+            value=st.session_state.cooking_enabled,
+            help="ON: temperature climbs with each answer. The lobster's brain gets progressively cooked.",
+        )
+        st.session_state.cooking_enabled = cooking_enabled
 
         # Auto-swap system prompt on mode change, but only if the current
         # prompt is a known default (don't clobber user edits).
-        if wiki_mode != st.session_state.last_wiki_mode:
-            new_default = WIKI_SYSTEM_PROMPT if wiki_mode else DEFAULT_SYSTEM_PROMPT
-            old_default = DEFAULT_SYSTEM_PROMPT if wiki_mode else WIKI_SYSTEM_PROMPT
-            if st.session_state.system_prompt == old_default:
+        mode_changed = (
+            wiki_enabled != st.session_state.prev_wiki
+            or cooking_enabled != st.session_state.prev_cooking
+        )
+        if mode_changed:
+            new_default = default_prompt_for_mode(wiki_enabled, cooking_enabled)
+            # Check if current prompt matches ANY of the three defaults.
+            all_defaults = {WIKI_SYSTEM_PROMPT, DEFAULT_SYSTEM_PROMPT, PLAIN_SYSTEM_PROMPT}
+            if st.session_state.system_prompt in all_defaults:
                 st.session_state.system_prompt = new_default
-                log.info(f"Mode changed -> swapped system prompt to {'wiki' if wiki_mode else 'cooking'} default")
-            st.session_state.last_wiki_mode = wiki_mode
+                log.info(f"Mode changed -> swapped system prompt (wiki={wiki_enabled}, cooking={cooking_enabled})")
+            st.session_state.prev_wiki = wiki_enabled
+            st.session_state.prev_cooking = cooking_enabled
 
         st.divider()
 
-        if wiki_mode:
-            st.markdown("### 📖 Wikipedia mode")
-            st.caption(
-                f"Temp fixed at {WIKI_TEMP}. The lobster can search Wikipedia "
-                "for facts. Cooking timer is off."
-            )
-            st.metric("Temperature", f"{WIKI_TEMP:.2f} (fixed)")
-
-            # Show last wiki lookup if any
-            if st.session_state.last_wiki_result:
-                st.caption("Last lookup:")
-                with st.expander(st.session_state.last_wiki_result["title"], expanded=False):
-                    st.caption(st.session_state.last_wiki_result["extract"][:500] + "...")
-        else:
-            st.markdown("### 🦞 Lobster status")
+        # --- Cooking status (if cooking is on) ---
+        if cooking_enabled:
+            st.markdown("### 🍳 Lobster status")
             temp = compute_temperature(st.session_state.heat_seconds)
             emoji, label = doneness_label(temp)
             pct = (st.session_state.heat_seconds / COOK_CYCLE_SECONDS) * 100
@@ -486,6 +507,15 @@ def main():
                     st.session_state.heat_seconds = 0.0
                     st.rerun()
 
+        # --- Wiki status (if wiki is on) ---
+        if wiki_enabled:
+            st.markdown("### 📖 Wikipedia")
+            st.caption(f"Search pass runs at fixed temp {WIKI_TEMP}.")
+            if st.session_state.last_wiki_result:
+                st.caption("Last lookup:")
+                with st.expander(st.session_state.last_wiki_result["title"], expanded=False):
+                    st.caption(st.session_state.last_wiki_result["extract"][:500] + "...")
+
         if st.session_state.history:
             if st.button("🧽 Clear memory (forget last turns)", use_container_width=True):
                 st.session_state.history = []
@@ -495,10 +525,8 @@ def main():
         st.markdown("### 📝 System prompt")
         st.caption("Edit freely. Takes effect on the next question.")
 
-        # In wiki mode, offer the wiki prompt; in cooking mode, the cooking prompt.
-        default_for_mode = WIKI_SYSTEM_PROMPT if wiki_mode else DEFAULT_SYSTEM_PROMPT
         if st.button("Reset to mode default", use_container_width=True):
-            st.session_state.system_prompt = default_for_mode
+            st.session_state.system_prompt = default_prompt_for_mode(wiki_enabled, cooking_enabled)
             st.rerun()
 
         st.session_state.system_prompt = st.text_area(
@@ -513,11 +541,17 @@ def main():
     # 🦞 LobsterGPT
     *2B parameters. Jumping spider territory (if you squint). Remembers the last 4 turns.*
     """)
-    if wiki_mode:
-        st.caption(
-            "📖 Wikipedia mode: the lobster can look things up. "
-            "Toggle cooking mode in the sidebar to watch its brain melt instead."
-        )
+    # Build mode description from the two toggles.
+    mode_tags = []
+    if wiki_enabled:
+        mode_tags.append("📖 Wikipedia search")
+    if cooking_enabled:
+        mode_tags.append("🍳 Cooking pot")
+    if not mode_tags:
+        mode_tags.append("🧠 Plain mode (own knowledge)")
+    st.caption(" · ".join(mode_tags))
+
+    if wiki_enabled:
         st.caption(
             "🪸 This lobster feeds on the reef of knowledge known as Wikipedia. "
             "Consider keeping its habitat clean by [donating to the Wikimedia Foundation]"
@@ -525,10 +559,15 @@ def main():
             "&country=US&uselang=en&wmf_medium=spontaneous&wmf_source=fr-redir"
             "&wmf_campaign=spontaneous)."
         )
-    else:
+    if cooking_enabled:
         st.caption(
             "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
             "Push it to 5.0° and its brain melts — then it resets and cools off."
+        )
+    if wiki_enabled and cooking_enabled:
+        st.caption(
+            "Searches run cool (temp 0.6) for reliability. "
+            "The cooked brain reads and answers the Wikipedia results."
         )
     st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
 
@@ -558,7 +597,11 @@ def main():
             send_text = send_text[:MAX_TEXT_CHARS]
 
         try:
-            if wiki_mode:
+            # Compute cooking temp now so both passes use the same heat level.
+            cooking_temp = compute_temperature(st.session_state.heat_seconds)
+            total_gen = 0.0  # accumulate generation time for the cooking timer
+
+            if wiki_enabled:
                 # --- Wiki two-pass ---
                 # Clean history: strip any assistant messages that contain
                 # "SEARCH:" so the model never sees prior SEARCH outputs as
@@ -568,18 +611,17 @@ def main():
                     if not (m["role"] == "assistant" and parse_search_command(m["content"]))
                 ]
 
-                # Pass 1: decide whether to search. Low max_tokens forces a
-                # terse SEARCH: line and stops the model from hallucinating a
-                # full answer after the SEARCH that we'd just throw away.
-                # 32 (not lower): long entity names + occasional short preamble
-                # can exceed 20 tokens and truncate the query mid-word.
+                # Pass 1: decide whether to search. ALWAYS at temp 0.6 for
+                # reliable SEARCH output, regardless of cooking mode.
+                # Low max_tokens forces a terse SEARCH: line.
                 with st.spinner("The lobster is thinking..."):
-                    first_pass, _ = run_inference(
+                    first_pass, gen1 = run_inference(
                         llm, send_text,
                         st.session_state.system_prompt, WIKI_TEMP,
                         clean_hist,
                         max_tokens=32,
                     )
+                    total_gen += gen1
 
                     search_query = parse_search_command(first_pass)
                     log.info(f"Wiki first-pass ({len(first_pass)} chars): search_query={search_query!r}")
@@ -592,17 +634,21 @@ def main():
 
                         if wiki_result:
                             st.session_state.last_wiki_result = wiki_result
-                            # Pass 2: answer using wiki context. NO history —
-                            # the answer pass gets a clean slate so nothing
-                            # in context can teach it to emit SEARCH again.
-                            with st.spinner("The lobster is reading Wikipedia..."):
-                                result, _ = run_inference(
+                            # Pass 2: answer using wiki context. NO history.
+                            # If cooking is ON, the answer pass uses the cooking
+                            # temp so the "cooked brain" reads Wikipedia.
+                            # If cooking is OFF, use 0.6.
+                            answer_temp = cooking_temp if cooking_enabled else WIKI_TEMP
+                            spinner_msg = f"The lobster is reading Wikipedia... (temp {answer_temp:.2f})" if cooking_enabled else "The lobster is reading Wikipedia..."
+                            with st.spinner(spinner_msg):
+                                result, gen2 = run_inference(
                                     llm, send_text,
-                                    WIKI_ANSWER_PROMPT, WIKI_TEMP,
+                                    WIKI_ANSWER_PROMPT, answer_temp,
                                     [],  # no history on answer pass
                                     wiki_context=wiki_result["context"],
                                     max_tokens=MAX_TOKENS,
                                 )
+                                total_gen += gen2
                             # Safety net: if the model STILL emits SEARCH,
                             # show the extract verbatim.
                             if parse_search_command(result):
@@ -614,25 +660,27 @@ def main():
                         result = first_pass  # model answered directly, no search
 
                 st.session_state.last_response = result
-                st.session_state.last_temp = WIKI_TEMP
+                st.session_state.last_temp = cooking_temp if cooking_enabled else WIKI_TEMP
                 st.session_state.last_truncated = truncated
 
             else:
-                # --- Cooking mode: temperature climbs with each answer ---
-                gen_temp = compute_temperature(st.session_state.heat_seconds)
-                with st.spinner(f"The lobster is thinking... (temp {gen_temp:.2f})"):
-                    result, elapsed = run_inference(
+                # --- Single-pass (plain or cooking-only) ---
+                answer_temp = cooking_temp if cooking_enabled else WIKI_TEMP
+                spinner_msg = f"The lobster is thinking... (temp {answer_temp:.2f})" if cooking_enabled else "The lobster is thinking..."
+                with st.spinner(spinner_msg):
+                    result, total_gen = run_inference(
                         llm, send_text,
-                        st.session_state.system_prompt, gen_temp,
+                        st.session_state.system_prompt, answer_temp,
                         st.session_state.history,
                     )
 
                 st.session_state.last_response = result
-                st.session_state.last_temp = gen_temp
+                st.session_state.last_temp = answer_temp
                 st.session_state.last_truncated = truncated
 
-                # Advance the cook timer by the generation time.
-                st.session_state.heat_seconds += elapsed
+            # Advance the cook timer by total generation time (both passes).
+            if cooking_enabled:
+                st.session_state.heat_seconds += total_gen
                 if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
                     log.info(
                         f"Lobster fully cooked at {st.session_state.heat_seconds:.1f}s "
@@ -658,13 +706,12 @@ def main():
     if st.session_state.last_response is not None:
         st.markdown("### Response")
         st.markdown(st.session_state.last_response)
-        if wiki_mode:
-            if st.session_state.last_wiki_result:
-                w = st.session_state.last_wiki_result
-                st.caption(f"📖 Looked up: {w['title']} ({len(w['extract'])} chars from Wikipedia)")
-            else:
-                st.caption(f"Answered from memory (temp {WIKI_TEMP:.2f})")
-        else:
+        # Show wiki lookup info if wiki was used.
+        if wiki_enabled and st.session_state.last_wiki_result:
+            w = st.session_state.last_wiki_result
+            st.caption(f"📖 Looked up: {w['title']} ({len(w['extract'])} chars from Wikipedia)")
+        # Show temperature info if cooking is on, or if temp was not the default.
+        if cooking_enabled:
             t_emoji, t_label = doneness_label(st.session_state.last_temp)
             st.caption(f"Generated at temperature {st.session_state.last_temp:.2f} · {t_emoji} {t_label}")
         if st.session_state.get("last_truncated", False):
@@ -696,7 +743,7 @@ def main():
 
     st.caption(
         "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
-        "Remembers the last 4 turns · toggle Wikipedia/cooking mode in the sidebar."
+        "Remembers the last 4 turns · toggle Wikipedia/cooking modes in the sidebar."
     )
 
 
