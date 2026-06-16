@@ -105,6 +105,7 @@ log = setup_logging()
 
 # Third-party imports — any import errors are now captured by the tee.
 import psutil
+import requests
 import streamlit as st
 from huggingface_hub import hf_hub_download
 
@@ -133,6 +134,14 @@ COOK_CYCLE_SECONDS = 120.0  # 2 minutes of cumulative generation -> fully cooked
 # 1 assistant). These are passed as context silently — no chat UI.
 MEMORY_TURNS = 4
 
+# --- Wikipedia mode ---
+# When wiki mode is ON (default), cooking is disabled and the model runs at
+# a fixed WIKI_TEMP. The model may emit "SEARCH: <query>" to look something
+# up; we fetch a short Wikipedia summary and re-run with that context.
+WIKI_TEMP = 0.6
+WIKI_MODE_DEFAULT = True
+WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+
 DEFAULT_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model running on a free, shared Streamlit Cloud server with no GPU. Because the machine is shared, efficiency matters.
 
 Response budget:
@@ -142,6 +151,17 @@ The cooking timer (read carefully):
 - A hidden timer advances ONLY while you are generating tokens (prefill + decode). It does NOT tick while the user reads or types.
 - Over 2 minutes of cumulative generation, your sampling temperature climbs from 0.6 ("raw") to 5.0 ("fully cooked"). The hotter you get, the wilder and less coherent your answers become. At 5.0 you are fully cooked — then the heat resets and you cool back to 0.6.
 - Every token you generate adds heat. SHORT answers keep you cool and sharp for the next question. LONG, rambling answers cook you faster. If you want to stay coherent, be brief.
+"""
+
+WIKI_SYSTEM_PROMPT = """You are LobsterGPT, a small 2B-parameter language model with Wikipedia access, running on a shared CPU-only server. Be concise and direct — 512 token hard limit per answer.
+
+Wikipedia tool:
+- If the user asks a factual question you cannot answer confidently from memory, emit EXACTLY one line in this format and nothing else:
+  SEARCH: <search query>
+- Use a short, specific query (a person's name, a place, an event, a concept). For example: "SEARCH: Albert Einstein".
+- If you DO know the answer well enough, answer directly without searching.
+- After a search, you will receive the Wikipedia summary as context. Use it to answer the user's original question. Do NOT mention Wikipedia, the search, or the source unless asked.
+- Prefer searching over guessing. A wrong confident answer is worse than a quick lookup.
 """
 
 
@@ -211,6 +231,72 @@ def doneness_label(temp: float) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Wikipedia
+# ---------------------------------------------------------------------------
+def search_wikipedia(query: str) -> dict | None:
+    """Fetch a short Wikipedia summary for a query. Returns None on failure.
+
+    Uses the REST summary endpoint, which auto-resolves the best-matching
+    article title and returns 1-2 clean paragraphs (~500-800 chars).
+
+    Returns {"title": ..., "extract": ..., "context": ...} on success.
+    """
+    headers = {"User-Agent": "LobsterGPT/1.0 (educational project)"}
+
+    # First resolve the query to a canonical page title via the search API.
+    search_url = "https://en.wikipedia.org/w/api.php"
+    search_params = {
+        "action": "query",
+        "list": "search",
+        "srsearch": query,
+        "srlimit": 1,
+        "format": "json",
+    }
+    try:
+        resp = requests.get(search_url, params=search_params, timeout=10, headers=headers)
+        resp.raise_for_status()
+        results = resp.json().get("query", {}).get("search", [])
+        if not results:
+            log.info(f"Wiki: no results for '{query}'")
+            return None
+        title = results[0]["title"]
+    except Exception as e:
+        log.warning(f"Wiki search failed for '{query}': {e}")
+        return None
+
+    # Fetch the summary for that title.
+    title_slug = requests.utils.quote(title.replace(" ", "_"))
+    summary_url = WIKI_API_BASE + title_slug
+    try:
+        resp = requests.get(summary_url, timeout=10, headers={**headers, "Accept": "application/json"})
+        resp.raise_for_status()
+        data = resp.json()
+        extract = data.get("extract", "").strip()
+        if not extract:
+            log.info(f"Wiki: empty extract for '{title}'")
+            return None
+        log.info(f"Wiki: fetched '{title}' ({len(extract)} chars)")
+        context = f"[Wikipedia: {title}]\n{extract}"
+        return {"title": title, "extract": extract, "context": context}
+    except Exception as e:
+        log.warning(f"Wiki summary fetch failed for '{title}': {e}")
+        return None
+
+
+def parse_search_command(text: str) -> str | None:
+    """Extract the query from a 'SEARCH: <query>' line. Returns None if not a search.
+
+    Only the first line after SEARCH: is taken, so trailing output is ignored.
+    """
+    stripped = text.strip()
+    if stripped.upper().startswith("SEARCH:"):
+        first_line = stripped.split("\n", 1)[0]
+        query = first_line[len("SEARCH:"):].strip()
+        return query if query else None
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
 # llama.cpp is NOT thread-safe: concurrent create_chat_completion calls on
@@ -220,21 +306,27 @@ def doneness_label(temp: float) -> tuple[str, str]:
 _INFERENCE_LOCK = threading.Lock()
 
 
-def run_inference(llm, text: str, system_prompt: str, temperature: float, history: list) -> tuple[str, float]:
-    """Single-turn inference with rolling memory. Returns (response, elapsed_seconds)."""
+def run_inference(llm, text: str, system_prompt: str, temperature: float, history: list, wiki_context: str | None = None, max_tokens: int = MAX_TOKENS) -> tuple[str, float]:
+    """Single-turn inference with rolling memory. Returns (response, gen_seconds).
+
+    If wiki_context is provided, it is injected as a system message before the
+    user prompt so the model can ground its answer in the Wikipedia summary.
+    """
     messages = []
     if system_prompt.strip():
         messages.append({"role": "system", "content": system_prompt})
     messages.extend(history)  # last MEMORY_TURNS exchanges
+    if wiki_context:
+        messages.append({"role": "system", "content": wiki_context})
     messages.append({"role": "user", "content": text})
 
-    log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}, ctx_turns={len(history)//2}")
+    log.info(f"Inference started: {len(text)} chars, temp={temperature:.2f}, ctx_turns={len(history)//2}, wiki={'yes' if wiki_context else 'no'}")
     t0 = time.time()
     with _INFERENCE_LOCK:
         gen_t0 = time.time()
         response = llm.create_chat_completion(
             messages=messages,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens,
             temperature=temperature,
             top_p=0.8,
             top_k=20,
@@ -259,7 +351,7 @@ def main():
         layout="centered",
     )
 
-    # --- Session state: cooking timer + system prompt + memory ---
+    # --- Session state: cooking timer + system prompt + memory + wiki ---
     if "heat_seconds" not in st.session_state:
         st.session_state.heat_seconds = 0.0
     if "system_prompt" not in st.session_state:
@@ -270,27 +362,55 @@ def main():
         st.session_state.last_temp = COOK_MIN_TEMP
     if "history" not in st.session_state:
         st.session_state.history = []  # list of {role, content} dicts, rolling window
+    if "wiki_mode" not in st.session_state:
+        st.session_state.wiki_mode = WIKI_MODE_DEFAULT
+    if "last_wiki_result" not in st.session_state:
+        st.session_state.last_wiki_result = None
 
-    # --- Sidebar: system prompt editor + cooking gauge ---
+    # --- Sidebar: mode toggle + status + system prompt editor ---
     with st.sidebar:
-        st.markdown("### 🦞 Lobster status")
+        st.markdown("### 🦞 Mode")
 
-        temp = compute_temperature(st.session_state.heat_seconds)
-        emoji, label = doneness_label(temp)
-        pct = (st.session_state.heat_seconds / COOK_CYCLE_SECONDS) * 100
-        st.metric("Temperature", f"{temp:.2f}", delta=label, delta_color="off")
-        st.progress(min(pct / 100.0, 1.0), text=f"{emoji} {label} · {pct:.0f}% cooked")
-
-        st.caption(
-            "Heat rises only while the lobster is generating tokens. "
-            f"2 minutes of cumulative generation takes it from {COOK_MIN_TEMP} to {COOK_MAX_TEMP}°. "
-            "Short answers keep it cool."
+        wiki_mode = st.toggle(
+            "📖 Wikipedia mode",
+            value=st.session_state.wiki_mode,
+            help="ON: Wikipedia access, fixed temp (0.6), no cooking. OFF: the cooking game — temperature climbs with each answer.",
         )
+        st.session_state.wiki_mode = wiki_mode
 
-        if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
-            if st.button("🔄 Reset heat (un-cook the lobster)", use_container_width=True):
-                st.session_state.heat_seconds = 0.0
-                st.rerun()
+        st.divider()
+
+        if wiki_mode:
+            st.markdown("### 📖 Wikipedia mode")
+            st.caption(
+                f"Temp fixed at {WIKI_TEMP}. The lobster can search Wikipedia "
+                "for facts. Cooking timer is off."
+            )
+            st.metric("Temperature", f"{WIKI_TEMP:.2f} (fixed)")
+
+            # Show last wiki lookup if any
+            if st.session_state.last_wiki_result:
+                st.caption("Last lookup:")
+                with st.expander(st.session_state.last_wiki_result["title"], expanded=False):
+                    st.caption(st.session_state.last_wiki_result["extract"][:500] + "...")
+        else:
+            st.markdown("### 🦞 Lobster status")
+            temp = compute_temperature(st.session_state.heat_seconds)
+            emoji, label = doneness_label(temp)
+            pct = (st.session_state.heat_seconds / COOK_CYCLE_SECONDS) * 100
+            st.metric("Temperature", f"{temp:.2f}", delta=label, delta_color="off")
+            st.progress(min(pct / 100.0, 1.0), text=f"{emoji} {label} · {pct:.0f}% cooked")
+
+            st.caption(
+                "Heat rises only while the lobster is generating tokens. "
+                f"2 minutes of cumulative generation takes it from {COOK_MIN_TEMP} to {COOK_MAX_TEMP}°. "
+                "Short answers keep it cool."
+            )
+
+            if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
+                if st.button("🔄 Reset heat (un-cook the lobster)", use_container_width=True):
+                    st.session_state.heat_seconds = 0.0
+                    st.rerun()
 
         if st.session_state.history:
             if st.button("🧽 Clear memory (forget last turns)", use_container_width=True):
@@ -301,8 +421,10 @@ def main():
         st.markdown("### 📝 System prompt")
         st.caption("Edit freely. Takes effect on the next question.")
 
-        if st.button("Reset to default", use_container_width=True):
-            st.session_state.system_prompt = DEFAULT_SYSTEM_PROMPT
+        # In wiki mode, offer the wiki prompt; in cooking mode, the cooking prompt.
+        default_for_mode = WIKI_SYSTEM_PROMPT if wiki_mode else DEFAULT_SYSTEM_PROMPT
+        if st.button("Reset to mode default", use_container_width=True):
+            st.session_state.system_prompt = default_for_mode
             st.rerun()
 
         st.session_state.system_prompt = st.text_area(
@@ -315,12 +437,18 @@ def main():
     # --- Header ---
     st.markdown("""
     # 🦞 LobsterGPT
-    *2B parameters. Jumping spider territory (if you squint). Remembers the last 4 turns, gets cooked as it talks.*
+    *2B parameters. Jumping spider territory (if you squint). Remembers the last 4 turns.*
     """)
-    st.caption(
-        "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
-        "Push it to 5.0° and its brain melts — then it resets and cools off."
-    )
+    if wiki_mode:
+        st.caption(
+            "📖 Wikipedia mode: the lobster can look things up. "
+            "Toggle cooking mode in the sidebar to watch its brain melt instead."
+        )
+    else:
+        st.caption(
+            "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
+            "Push it to 5.0° and its brain melts — then it resets and cools off."
+        )
     st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
 
     st.divider()
@@ -340,30 +468,57 @@ def main():
         if truncated:
             send_text = send_text[:MAX_TEXT_CHARS]
 
-        # Snapshot temperature for THIS generation, then accumulate heat.
-        gen_temp = compute_temperature(st.session_state.heat_seconds)
+        try:
+            if wiki_mode:
+                # --- Wiki two-pass: first pass lets the model decide to search ---
+                with st.spinner("The lobster is thinking..."):
+                    first_pass, _ = run_inference(
+                        llm, send_text,
+                        st.session_state.system_prompt, WIKI_TEMP,
+                        st.session_state.history,
+                        max_tokens=MAX_TOKENS,
+                    )
 
-        with st.spinner(f"The lobster is thinking... (temp {gen_temp:.2f})"):
-            try:
-                result, elapsed = run_inference(
-                    llm, send_text,
-                    st.session_state.system_prompt, gen_temp,
-                    st.session_state.history,
-                )
+                    search_query = parse_search_command(first_pass)
+                    if search_query:
+                        log.info(f"Wiki search requested: '{search_query}'")
+                        with st.spinner(f"📖 Looking up '{search_query}' on Wikipedia..."):
+                            wiki_result = search_wikipedia(search_query)
+
+                        if wiki_result:
+                            st.session_state.last_wiki_result = wiki_result
+                            with st.spinner("The lobster is reading Wikipedia..."):
+                                result, _ = run_inference(
+                                    llm, send_text,
+                                    st.session_state.system_prompt, WIKI_TEMP,
+                                    st.session_state.history,
+                                    wiki_context=wiki_result["context"],
+                                )
+                        else:
+                            result = first_pass  # search failed, show whatever the model said
+                    else:
+                        result = first_pass  # model answered directly, no search
+
+                st.session_state.last_response = result
+                st.session_state.last_temp = WIKI_TEMP
+                st.session_state.last_truncated = truncated
+
+            else:
+                # --- Cooking mode: temperature climbs with each answer ---
+                gen_temp = compute_temperature(st.session_state.heat_seconds)
+                with st.spinner(f"The lobster is thinking... (temp {gen_temp:.2f})"):
+                    result, elapsed = run_inference(
+                        llm, send_text,
+                        st.session_state.system_prompt, gen_temp,
+                        st.session_state.history,
+                    )
+
                 st.session_state.last_response = result
                 st.session_state.last_temp = gen_temp
                 st.session_state.last_truncated = truncated
 
-                # Roll the memory window: append this exchange, keep last MEMORY_TURNS.
-                st.session_state.history.append({"role": "user", "content": send_text})
-                st.session_state.history.append({"role": "assistant", "content": result})
-                max_msgs = MEMORY_TURNS * 2
-                if len(st.session_state.history) > max_msgs:
-                    st.session_state.history = st.session_state.history[-max_msgs:]
-
                 # Advance the cook timer by the generation time.
                 st.session_state.heat_seconds += elapsed
-                # If we crossed the finish line, reset for the next cycle.
                 if st.session_state.heat_seconds >= COOK_CYCLE_SECONDS:
                     log.info(
                         f"Lobster fully cooked at {st.session_state.heat_seconds:.1f}s "
@@ -371,18 +526,33 @@ def main():
                     )
                     st.session_state.heat_seconds = 0.0
                     st.toast("🔥 The lobster is fully cooked! Heat reset.", icon="🦞")
-            except Exception as e:
-                st.error(f"Inference failed: {e}")
-                with st.expander("Traceback"):
-                    traceback.print_exc(file=sys.stdout)
-                    st.code(traceback.format_exc())
+
+            # Common: roll the memory window.
+            st.session_state.history.append({"role": "user", "content": send_text})
+            st.session_state.history.append({"role": "assistant", "content": result})
+            max_msgs = MEMORY_TURNS * 2
+            if len(st.session_state.history) > max_msgs:
+                st.session_state.history = st.session_state.history[-max_msgs:]
+
+        except Exception as e:
+            st.error(f"Inference failed: {e}")
+            with st.expander("Traceback"):
+                traceback.print_exc(file=sys.stdout)
+                st.code(traceback.format_exc())
 
     # --- Display latest response ---
     if st.session_state.last_response is not None:
         st.markdown("### Response")
         st.markdown(st.session_state.last_response)
-        t_emoji, t_label = doneness_label(st.session_state.last_temp)
-        st.caption(f"Generated at temperature {st.session_state.last_temp:.2f} · {t_emoji} {t_label}")
+        if wiki_mode:
+            if st.session_state.last_wiki_result:
+                w = st.session_state.last_wiki_result
+                st.caption(f"📖 Looked up: {w['title']} ({len(w['extract'])} chars from Wikipedia)")
+            else:
+                st.caption(f"Answered from memory (temp {WIKI_TEMP:.2f})")
+        else:
+            t_emoji, t_label = doneness_label(st.session_state.last_temp)
+            st.caption(f"Generated at temperature {st.session_state.last_temp:.2f} · {t_emoji} {t_label}")
         if st.session_state.get("last_truncated", False):
             st.caption(f"✂️ Your prompt was truncated to {MAX_TEXT_CHARS} chars.")
         turns_held = len(st.session_state.history) // 2
@@ -412,7 +582,7 @@ def main():
 
     st.caption(
         "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
-        "Remembers the last 4 turns — each prompt builds on recent context."
+        "Remembers the last 4 turns · toggle Wikipedia/cooking mode in the sidebar."
     )
 
 
