@@ -518,6 +518,13 @@ def main():
             "📖 Wikipedia mode: the lobster can look things up. "
             "Toggle cooking mode in the sidebar to watch its brain melt instead."
         )
+        st.caption(
+            "🪸 This lobster feeds on the reef of knowledge known as Wikipedia. "
+            "Consider keeping its habitat clean by [donating to the Wikimedia Foundation]"
+            "(https://donate.wikimedia.org/w/index.php?title=Special:LandingPage"
+            "&country=US&uselang=en&wmf_medium=spontaneous&wmf_source=fr-redir"
+            "&wmf_campaign=spontaneous)."
+        )
     else:
         st.caption(
             "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
@@ -561,14 +568,15 @@ def main():
                     if not (m["role"] == "assistant" and parse_search_command(m["content"]))
                 ]
 
-                # Pass 1: decide whether to search. Low max_tokens forces a
-                # terse SEARCH: line instead of a rambling non-answer.
+                # Pass 1: decide whether to search. Very low max_tokens forces
+                # a terse SEARCH: line and stops the model from hallucinating a
+                # full answer after the SEARCH that we'd just throw away.
                 with st.spinner("The lobster is thinking..."):
                     first_pass, _ = run_inference(
                         llm, send_text,
                         st.session_state.system_prompt, WIKI_TEMP,
                         clean_hist,
-                        max_tokens=64,
+                        max_tokens=20,
                     )
 
                     search_query = parse_search_command(first_pass)
