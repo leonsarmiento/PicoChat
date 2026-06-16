@@ -6,7 +6,7 @@ A fruit fly has ~0.8B synapses. A jumping spider has ~2B.
 2B parameters puts us in jumping spider territory — tiny, fast,
 with no need for small talk.
 
-Model: Qwen3.5-2B-GGUF (UD-Q4_K_XL)
+Model: Qwen3.5-2B-GGUF (Q8_0)
 Engine: llama-cpp-python
 """
 
@@ -113,7 +113,7 @@ from huggingface_hub import hf_hub_download
 # Constants
 # ---------------------------------------------------------------------------
 MODEL_REPO = "unsloth/Qwen3.5-2B-GGUF"
-MODEL_FILE = "Qwen3.5-2B-UD-Q4_K_XL.gguf"
+MODEL_FILE = "Qwen3.5-2B-Q8_0.gguf"
 
 MAX_TEXT_CHARS = 500
 N_CTX = 20000
@@ -530,7 +530,7 @@ def main():
             "Every answer cooks the lobster a little. Let it ramble and watch the temperature climb. "
             "Push it to 5.0° and its brain melts — then it resets and cools off."
         )
-    st.caption("Qwen3.5-2B (UD-Q4_K_XL) · Text limit: 500 chars · Text only")
+    st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
 
     st.divider()
 
@@ -695,7 +695,7 @@ def main():
             st.caption("No log file yet.")
 
     st.caption(
-        "LobsterGPT · Qwen3.5-2B (UD-Q4_K_XL) · llama-cpp-python · "
+        "LobsterGPT · Qwen3.5-2B (Q8_0) · llama-cpp-python · "
         "Remembers the last 4 turns · toggle Wikipedia/cooking mode in the sidebar."
     )
 
