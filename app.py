@@ -125,7 +125,7 @@ N_THREADS = max(2, min(12, (os.cpu_count() or 4)))
 # A hidden timer advances ONLY during generation (prefill + decode). Over
 # COOK_CYCLE_SECONDS of cumulative generation time, temperature ramps from
 # COOK_MIN_TEMP ("raw") to COOK_MAX_TEMP ("fully cooked"), then resets.
-COOK_MIN_TEMP = 0.6
+COOK_MIN_TEMP = 0.7
 COOK_MAX_TEMP = 5.0
 COOK_CYCLE_SECONDS = 120.0  # 2 minutes of cumulative generation -> fully cooked
 
@@ -139,7 +139,7 @@ MEMORY_TURNS = 4
 # Wiki ON: two-pass system (model emits SEARCH:, app fetches article).
 # Cooking ON: temperature climbs with cumulative generation time.
 # Both can be on simultaneously.
-WIKI_TEMP = 0.6
+WIKI_TEMP = 0.7
 WIKI_DEFAULT = False
 COOKING_DEFAULT = False
 WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/"
@@ -152,7 +152,7 @@ Response budget:
 
 The cooking timer (read carefully):
 - A hidden timer advances ONLY while you are generating tokens (prefill + decode). It does NOT tick while the user reads or types.
-- Over 2 minutes of cumulative generation, your sampling temperature climbs from 0.6 ("raw") to 5.0 ("fully cooked"). The hotter you get, the wilder and less coherent your answers become. At 5.0 you are fully cooked — then the heat resets and you cool back to 0.6.
+- Over 2 minutes of cumulative generation, your sampling temperature climbs from 0.7 ("raw") to 5.0 ("fully cooked"). The hotter you get, the wilder and less coherent your answers become. At 5.0 you are fully cooked — then the heat resets and you cool back to 0.7.
 - Every token you generate adds heat. SHORT answers keep you cool and sharp for the next question. LONG, rambling answers cook you faster. If you want to stay coherent, be brief.
 """
 
@@ -459,7 +459,7 @@ def main():
         wiki_enabled = st.toggle(
             "📖 Wikipedia search",
             value=st.session_state.wiki_enabled,
-            help="ON: the lobster can search Wikipedia for facts (two-pass, temp 0.6 for search).",
+            help="ON: the lobster can search Wikipedia for facts (two-pass, temp 0.7 for search).",
         )
         st.session_state.wiki_enabled = wiki_enabled
 
@@ -567,7 +567,7 @@ def main():
         )
     if wiki_enabled and cooking_enabled:
         st.caption(
-            "Searches run cool (temp 0.6) for reliability. "
+            "Searches run cool (temp 0.7) for reliability. "
             "The cooked brain reads and answers the Wikipedia results."
         )
     st.caption("Qwen3.5-2B (Q8_0) · Text limit: 500 chars · Text only")
@@ -579,17 +579,18 @@ def main():
     llm = load_model(model_path)
 
     # --- Input (inline form, right under the model load message) ---
-    # st.chat_input always pins to the bottom of the viewport, which is why
-    # the box appeared at the foot of the page. A form with text_input renders
-    # inline AND gives us plain Enter-to-send (chat_input needed cmd/ctrl+enter).
+    # st.chat_input always pins to the bottom of the viewport. A form with
+    # text_area renders inline, wraps long text, and gives a tall enough box
+    # to read what you've written. Enter = newline, Ctrl/Cmd+Enter = submit.
     with st.form("chat_form", clear_on_submit=True):
-        prompt = st.text_input(
+        prompt = st.text_area(
             "Ask the lobster...",
             placeholder="Ask the lobster anything...",
+            height=120,
             label_visibility="collapsed",
         )
         submitted = st.form_submit_button("🦞 Ask the lobster", use_container_width=True)
-        st.caption("Press **Enter** to send · paste is supported")
+        st.caption("Press **⌘/Ctrl + Enter** to send · paste is supported")
 
     if submitted and prompt:
         send_text = prompt.strip()
@@ -612,7 +613,7 @@ def main():
                     if not (m["role"] == "assistant" and parse_search_command(m["content"]))
                 ]
 
-                # Pass 1: decide whether to search. ALWAYS at temp 0.6 for
+                # Pass 1: decide whether to search. ALWAYS at temp 0.7 for
                 # reliable SEARCH output, regardless of cooking mode.
                 # Low max_tokens forces a terse SEARCH: line.
                 with st.spinner("The lobster is thinking..."):
@@ -638,7 +639,7 @@ def main():
                             # Pass 2: answer using wiki context. NO history.
                             # If cooking is ON, the answer pass uses the cooking
                             # temp so the "cooked brain" reads Wikipedia.
-                            # If cooking is OFF, use 0.6.
+                            # If cooking is OFF, use 0.7.
                             answer_temp = cooking_temp if cooking_enabled else WIKI_TEMP
                             spinner_msg = f"The lobster is reading Wikipedia... (temp {answer_temp:.2f})" if cooking_enabled else "The lobster is reading Wikipedia..."
                             with st.spinner(spinner_msg):
